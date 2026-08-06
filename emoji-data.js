@@ -26436,18 +26436,131 @@
         "family":  "Flags"
     }
 ];
+  function translateEmojiName(name) {
+    if (!name) {
+      return name;
+    }
+
+    const normalized = name.trim();
+    const lower = normalized.toLowerCase();
+    const phraseMap = new Map([
+      ['rolling on the floor laughing', 'roulant par terre de rire'],
+      ['face with tears of joy', 'visage en larmes de joie'],
+      ['beaming face with smiling eyes', 'visage rayonnant aux yeux souriants'],
+      ['smiling face with heart-eyes', 'visage souriant aux yeux en forme de cœur'],
+      ['face with hand over mouth', 'visage avec la main sur la bouche'],
+      ['face with open eyes and hand over mouth', 'visage avec les yeux ouverts et la main sur la bouche'],
+      ['face with peeking eye', 'visage avec un œil qui regarde'],
+      ['face with raised eyebrow', 'visage avec un sourcil levé'],
+      ['face with diagonal mouth', 'visage avec une bouche oblique'],
+      ['face with medical mask', 'visage avec un masque médical'],
+      ['face with head-bandage', 'visage avec un bandage'],
+      ['face with rolling eyes', 'visage les yeux levés'],
+      ['face blowing a kiss', 'visage soufflant un baiser'],
+      ['zipper-mouth face', 'visage bouche zippée'],
+      ['face screaming in fear', 'visage hurlant de peur'],
+      ['face with symbols on mouth', 'visage avec des symboles sur la bouche'],
+      ['star-struck', 'ébloui'],
+      ['FREE button', 'bouton GRATUIT'],
+      ['Japanese “free of charge” button', 'bouton japonais « gratuit »'],
+      ['Japanese “not free of charge” button', 'bouton japonais « payant »']
+    ]);
+
+    if (phraseMap.has(lower)) {
+      return phraseMap.get(lower);
+    }
+
+    const replacements = [
+      [/\bwith\b/gi, 'avec'],
+      [/\band\b/gi, 'et'],
+      [/\bof\b/gi, 'de'],
+      [/\bthe\b/gi, 'le'],
+      [/\ba\b/gi, 'un'],
+      [/\bto\b/gi, 'à'],
+      [/\bfor\b/gi, 'pour'],
+      [/\bby\b/gi, 'par'],
+      [/\bon\b/gi, 'sur'],
+      [/\bsmiling\b/gi, 'souriant'],
+      [/\bgrinning\b/gi, 'souriant'],
+      [/\bwinking\b/gi, 'faisant un clin d’œil'],
+      [/\bclosed\b/gi, 'fermé'],
+      [/\bopen\b/gi, 'ouvert'],
+      [/\bbig\b/gi, 'grand'],
+      [/\bsmall\b/gi, 'petit'],
+      [/\bheart-eyes\b/gi, 'yeux en forme de cœur'],
+      [/\bheart\b/gi, 'cœur'],
+      [/\bhearts\b/gi, 'cœurs'],
+      [/\beyes\b/gi, 'yeux'],
+      [/\beye\b/gi, 'œil'],
+      [/\bfaces\b/gi, 'visages'],
+      [/\bface\b/gi, 'visage'],
+      [/\bhand\b/gi, 'main'],
+      [/\bhands\b/gi, 'mains'],
+      [/\bhead\b/gi, 'tête'],
+      [/\bmask\b/gi, 'masque'],
+      [/\bthermometer\b/gi, 'thermomètre'],
+      [/\bskull\b/gi, 'crâne'],
+      [/\bcowboy\b/gi, 'cowboy'],
+      [/\bhat\b/gi, 'chapeau'],
+      [/\bpoo\b/gi, 'caca'],
+      [/\bghost\b/gi, 'fantôme'],
+      [/\balien\b/gi, 'extraterrestre'],
+      [/\brobot\b/gi, 'robot'],
+      [/\bman\b/gi, 'homme'],
+      [/\bwoman\b/gi, 'femme'],
+      [/\bperson\b/gi, 'personne'],
+      [/\bboy\b/gi, 'garçon'],
+      [/\bgirl\b/gi, 'fille'],
+      [/\bbaby\b/gi, 'bébé'],
+      [/\bchild\b/gi, 'enfant'],
+      [/\bpolice\b/gi, 'police'],
+      [/\bfire\b/gi, 'feu'],
+      [/\bwater\b/gi, 'eau'],
+      [/\brocket\b/gi, 'fusée'],
+      [/\bstar\b/gi, 'étoile'],
+      [/\bsmoke\b/gi, 'fumée'],
+      [/\bexploding\b/gi, 'explosif'],
+      [/\bflushed\b/gi, 'rougi'],
+      [/\bdizzy\b/gi, 'étourdi'],
+      [/\bparty\b/gi, 'fête'],
+      [/\bzany\b/gi, 'loufoque'],
+      [/\bcold\b/gi, 'froid'],
+      [/\bhot\b/gi, 'chaud'],
+      [/\bgreen\b/gi, 'vert'],
+      [/\bblue\b/gi, 'bleu'],
+      [/\bred\b/gi, 'rouge'],
+      [/\bblack\b/gi, 'noir'],
+      [/\bwhite\b/gi, 'blanc'],
+      [/\bbrown\b/gi, 'brun'],
+      [/\bgray\b/gi, 'gris'],
+      [/\bgrey\b/gi, 'gris'],
+      [/\bbutton\b/gi, 'bouton'],
+      [/\bjapanese\b/gi, 'japonais'],
+      [/\bfrench\b/gi, 'français'],
+      [/\bflag\b/gi, 'drapeau']
+    ];
+
+    let result = normalized.replace(/-/g, ' ');
+    replacements.forEach(([regex, replacement]) => {
+      result = result.replace(regex, replacement);
+    });
+    result = result.replace(/\s+/g, ' ').trim();
+    return result;
+  }
+
   const EMOJI_LIBRARY = RAW_EMOJI_ENTRIES.map((emoji, index, arr) => {
     const rarityName = (() => {
       const ratio = index / Math.max(1, arr.length);
       if (ratio < 0.7) return 'Commun';
       if (ratio < 0.9) return 'Peu commun';
       if (ratio < 0.97) return 'Rare';
-      if (ratio < 0.995) return 'Ã‰pique';
-      return 'LÃ©gendaire';
+      if (ratio < 0.995) return 'Épique';
+      return 'Légendaire';
     })();
     const rarity = getRarityByName(rarityName);
     return {
       ...emoji,
+      name: translateEmojiName(emoji.name),
       rarity,
       rate: rarity.rate
     };
