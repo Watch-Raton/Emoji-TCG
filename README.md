@@ -1,6 +1,7 @@
 # Emoji-TCG
 
 `Emoji-TCG` est un jeu web de collection d’émojis.
+Joue au jeu ici : https://emoji-tcg.onrender.com/index.html
 
 ## Comment ça marche
 
