@@ -47,7 +47,7 @@
       <div id="libraryGrid" class="library-grid"></div>
     </main>
 
-    <script src="emoji-data.js"></script>
+    <script src="emoji-data.js?v=20260806"></script>
     <script>
       const libraryGrid = document.getElementById('libraryGrid');
       const searchInput = document.getElementById('librarySearch');
@@ -55,12 +55,25 @@
       const discoveredCountEl = document.getElementById('discoveredCount');
       const totalCountEl = document.getElementById('totalCount');
       const library = Array.isArray(window.EmojiTCGData?.EMOJI_LIBRARY) ? window.EmojiTCGData.EMOJI_LIBRARY : [];
-      const { getRarityByName, getRarityRank: sharedGetRarityRank } = window.EmojiTCGData || {};
+      const { getRarityByName, getRarityRank: sharedGetRarityRank, translateEmojiName } = window.EmojiTCGData || {};
       const storageKey = 'emoji-tcg-save-v1';
       let sortAscending = false;
 
       function getDisplayName(item) {
-        return item.name || item.symbol;
+        if (!item) {
+          return '';
+        }
+
+        const rawName = item.displayName || item.frenchName || item.localizedName || item.name || item.symbol || '';
+        if (typeof rawName !== 'string' || !rawName.trim()) {
+          return item.symbol || '';
+        }
+
+        if (typeof translateEmojiName === 'function') {
+          return translateEmojiName(rawName);
+        }
+
+        return rawName;
       }
 
       function getRarityRankValue(rarityName) {
@@ -158,7 +171,8 @@
         });
 
         const filtered = library.filter((item) => {
-          const text = `${item.symbol} ${getDisplayName(item)} ${item.family || ''} ${item.rarity.name}`.toLowerCase();
+          const displayName = getDisplayName(item);
+          const text = `${item.symbol} ${displayName} ${item.family || ''} ${item.rarity?.name || ''}`.toLowerCase();
           return text.includes(term);
         });
 

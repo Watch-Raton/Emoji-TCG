@@ -13,9 +13,36 @@ const RARITY_CONFIG = SHARED_RARITY_CONFIG.length ? SHARED_RARITY_CONFIG : [
 ];
 
 const EMOJI_POOL = EMOJI_LIBRARY;
+const EMOJI_LIBRARY_BY_SYMBOL = new Map(EMOJI_LIBRARY.map((emoji) => [emoji.symbol, emoji]));
+
+function normalizeCollectionEntry(entry) {
+  if (!entry) {
+    return entry;
+  }
+
+  const matchingEmoji = EMOJI_LIBRARY_BY_SYMBOL.get(entry.symbol) || EMOJI_LIBRARY.find((emoji) => makeEmojiKey(emoji) === entry.key || emoji.name === entry.name);
+  if (!matchingEmoji) {
+    return entry;
+  }
+
+  return {
+    ...entry,
+    key: entry.key || makeEmojiKey(matchingEmoji),
+    symbol: matchingEmoji.symbol,
+    name: matchingEmoji.name,
+    rarity: matchingEmoji.rarity?.name || entry.rarity,
+    group: matchingEmoji.group || entry.group,
+    family: matchingEmoji.family || entry.family
+  };
+}
+
+function normalizeCollectionState(collection = {}) {
+  return Object.fromEntries(Object.entries(collection).map(([key, entry]) => [key, normalizeCollectionEntry(entry)]));
+}
 
 let state = loadState();
 let displayedBoosterSignature = null;
+let boosterRevealModal = null;
 
 if (!window.EmojiTCGData) {
   console.warn('emoji-data.js is not loaded');
@@ -42,7 +69,10 @@ openBoosterBtn.addEventListener('click', async () => {
     return;
   }
 
-  const booster = createBooster();
+  const booster = createBooster().map((card) => ({
+    ...card,
+    wasOwned: Boolean(state.collection[card.key]?.count)
+  }));
   state.lastOpenedAt = now;
   state.boostersOpened += 1;
   state.lastBooster = booster;
@@ -133,7 +163,17 @@ function loadState() {
 
   try {
     const parsed = JSON.parse(raw);
-    return parsed && parsed.collection ? parsed : createEmptyState();
+    if (!parsed || !parsed.collection) {
+      return createEmptyState();
+    }
+
+    const normalizedState = {
+      ...parsed,
+      collection: normalizeCollectionState(parsed.collection),
+      lastBooster: Array.isArray(parsed.lastBooster) ? parsed.lastBooster.map(normalizeCollectionEntry) : []
+    };
+
+    return normalizedState;
   } catch {
     return createEmptyState();
   }
@@ -163,6 +203,108 @@ function getAvailableBoosters(now) {
 
 function getRarityStyle(name) {
   return getRarityByName(name) || RARITY_CONFIG.find((item) => item.name === 'Commun') || RARITY_CONFIG[0];
+}
+
+function getDisplayName(emoji) {
+  if (!emoji) {
+    return '';
+  }
+
+  const translatedName = (emoji.name || '').toString().trim();
+  if (translatedName) {
+    return translatedName;
+  }
+
+  return (emoji.key || emoji.symbol || '').toString();
+}
+
+function ensureBoosterRevealModal() {
+  if (boosterRevealModal) {
+    return boosterRevealModal;
+  }
+
+  boosterRevealModal = document.createElement('div');
+  boosterRevealModal.className = 'booster-reveal-modal';
+  boosterRevealModal.setAttribute('aria-hidden', 'true');
+  boosterRevealModal.innerHTML = `
+    <div class="booster-reveal-panel">
+      <div class="booster-reveal-header">
+        <div>
+          <p class="reveal-kicker">Révélation du booster</p>
+          <h3 class="reveal-title">Émoji 1/10</h3>
+        </div>
+        <button type="button" class="reveal-close" aria-label="Fermer">×</button>
+      </div>
+      <div class="reveal-emoji-stage">
+        <div class="reveal-emoji">🎁</div>
+      </div>
+      <div class="reveal-info">
+        <div class="reveal-badges">
+          <span class="reveal-rarity-badge">Commun</span>
+          <span class="reveal-new-pill">Nouveau !</span>
+        </div>
+        <div class="reveal-meta-row"><span class="reveal-label">Nom</span><strong class="reveal-name">—</strong></div>
+        <div class="reveal-meta-row"><span class="reveal-label">Rareté</span><strong class="reveal-rarity">—</strong></div>
+        <div class="reveal-meta-row"><span class="reveal-label">Taux d’obtention</span><strong class="reveal-rate">—</strong></div>
+      </div>
+      <div class="reveal-progress"><span class="reveal-progress-fill"></span></div>
+      <p class="reveal-counter">1/10</p>
+    </div>
+  `;
+
+  boosterRevealModal.addEventListener('click', (event) => {
+    if (event.target === boosterRevealModal) {
+      boosterRevealModal.classList.remove('is-open');
+      boosterRevealModal.setAttribute('aria-hidden', 'true');
+    }
+  });
+
+  boosterRevealModal.querySelector('.reveal-close').addEventListener('click', () => {
+    boosterRevealModal.classList.remove('is-open');
+    boosterRevealModal.setAttribute('aria-hidden', 'true');
+  });
+
+  document.body.appendChild(boosterRevealModal);
+  return boosterRevealModal;
+}
+
+function updateBoosterRevealModal(card, index, total) {
+  const modal = ensureBoosterRevealModal();
+  const rarityStyle = getRarityStyle(card.rarity);
+  const panel = modal.querySelector('.booster-reveal-panel');
+  const rarityBadge = modal.querySelector('.reveal-rarity-badge');
+  const newPill = modal.querySelector('.reveal-new-pill');
+  const progressFill = modal.querySelector('.reveal-progress-fill');
+  const emojiStage = modal.querySelector('.reveal-emoji');
+  const title = modal.querySelector('.reveal-title');
+  const nameEl = modal.querySelector('.reveal-name');
+  const rarityEl = modal.querySelector('.reveal-rarity');
+  const rateEl = modal.querySelector('.reveal-rate');
+  const counter = modal.querySelector('.reveal-counter');
+
+  title.textContent = `Émoji ${index + 1}/${total}`;
+  emojiStage.textContent = card.symbol;
+  nameEl.textContent = card.name;
+  rarityEl.textContent = card.rarity;
+  rateEl.textContent = `${rarityStyle?.rate ?? 0}%`;
+  counter.textContent = `${index + 1}/${total}`;
+  rarityBadge.textContent = card.rarity;
+  rarityBadge.style.background = `${rarityStyle.color}22`;
+  rarityBadge.style.color = rarityStyle.color;
+  rarityBadge.style.borderColor = `${rarityStyle.color}55`;
+  progressFill.style.width = `${((index + 1) / total) * 100}%`;
+  panel.style.setProperty('--reveal-color', rarityStyle.color);
+  panel.style.borderColor = `${rarityStyle.color}55`;
+  panel.style.boxShadow = `0 0 0 1px ${rarityStyle.color}22, 0 30px 70px rgba(0, 0, 0, 0.38), 0 0 24px ${rarityStyle.color}44`;
+
+  if (card.wasOwned) {
+    newPill.style.display = 'none';
+  } else {
+    newPill.style.display = 'inline-flex';
+  }
+
+  modal.classList.add('is-open');
+  modal.setAttribute('aria-hidden', 'false');
 }
 
 function render() {
@@ -209,7 +351,7 @@ function render() {
         }
         item.innerHTML = `
           <div class="emoji">${card.symbol}</div>
-          <span class="name">${card.name}</span>
+          <span class="name">${getDisplayName(card)}</span>
           <span class="rarity" style="background:${rarityStyle ? `${rarityStyle.color}22` : '#ffffff22'}; color:${rarityStyle?.color || '#ffffff'};">${card.rarity}</span>
         `;
         boosterResults.appendChild(item);
@@ -224,7 +366,8 @@ function render() {
   const collectionEntries = Object.values(state.collection).sort((a, b) => b.count - a.count);
   if (collectionEntries.length) {
     collectionList.innerHTML = '';
-    collectionEntries.forEach((entry) => {
+    const visibleEntries = collectionEntries.slice(0, 15);
+    visibleEntries.forEach((entry) => {
       const item = document.createElement('article');
       const rarityStyle = getRarityStyle(entry.rarity);
       item.className = 'collection-item';
@@ -233,7 +376,7 @@ function render() {
       item.innerHTML = `
         <div class="emoji-big">${entry.symbol}</div>
         <div class="meta">
-          <span class="name">${entry.name}</span>
+          <span class="name">${getDisplayName(entry)}</span>
           <div class="count">
             <span>x${entry.count}</span>
             <span class="rarity-badge" style="background:${rarityStyle.color}22; color:${rarityStyle.color}; border-color:${rarityStyle.color}55;">${entry.rarity}</span>
@@ -242,11 +385,24 @@ function render() {
       `;
       collectionList.appendChild(item);
     });
+
+    if (collectionEntries.length > 15) {
+      const moreItem = document.createElement('a');
+      moreItem.href = 'collection.html';
+      moreItem.className = 'collection-item';
+      moreItem.style.textDecoration = 'none';
+      moreItem.style.display = 'flex';
+      moreItem.style.alignItems = 'center';
+      moreItem.style.justifyContent = 'center';
+      moreItem.style.cursor = 'pointer';
+      moreItem.innerHTML = '<span class="name">Voir toute la collection</span>';
+      collectionList.appendChild(moreItem);
+    }
   } else {
     collectionList.innerHTML = '<div class="empty-state">Ta collection est vide. Ouvre un booster pour commencer.</div>';
   }
 
-  const sampleEntries = EMOJI_LIBRARY.slice(0, 36).map((emoji) => {
+  const sampleEntries = EMOJI_LIBRARY.slice(0, 15).map((emoji) => {
     const entry = state.collection[makeEmojiKey(emoji)] || { count: 0 };
     return {
       ...emoji,
@@ -264,12 +420,23 @@ function render() {
       item.innerHTML = `
         <div class="emoji-big">${emoji.symbol}</div>
         <div class="meta">
-          <span class="name">${emoji.name}</span>
+          <span class="name">${getDisplayName(emoji)}</span>
           <span class="count">${emoji.count} obtenu${emoji.count > 1 ? 's' : ''} · <span style="color:${rarityStyle.color}; font-weight:700;">${emoji.rarity.name} · ${emoji.rarity.rate}%</span></span>
         </div>
       `;
       libraryList.appendChild(item);
     });
+
+    const libraryLink = document.createElement('a');
+    libraryLink.href = 'library.html';
+    libraryLink.className = 'collection-item';
+    libraryLink.style.textDecoration = 'none';
+    libraryLink.style.display = 'flex';
+    libraryLink.style.alignItems = 'center';
+    libraryLink.style.justifyContent = 'center';
+    libraryLink.style.cursor = 'pointer';
+    libraryLink.innerHTML = '<span class="name">Voir la bibliothèque complète</span>';
+    libraryList.appendChild(libraryLink);
   } else {
     libraryList.innerHTML = '<div class="empty-state">La bibliothèque est vide pour le moment.</div>';
   }
@@ -284,6 +451,7 @@ function showToast(message) {
 
 async function revealBooster(booster) {
   boosterResults.innerHTML = '';
+
   for (let index = 0; index < booster.length; index += 1) {
     const card = booster[index];
     const rarityStyle = getRarityStyle(card.rarity);
@@ -303,9 +471,11 @@ async function revealBooster(booster) {
       <div class="emoji">${card.symbol}</div>
       <span class="name">${card.name}</span>
       <span class="rarity" style="background:${rarityStyle ? `${rarityStyle.color}22` : '#ffffff22'}; color:${rarityStyle?.color || '#ffffff'};">${card.rarity}</span>
+      ${card.wasOwned ? '' : '<span class="new-pill">Nouveau !</span>'}
     `;
     boosterResults.appendChild(item);
-    await new Promise((resolve) => setTimeout(resolve, 120));
+    updateBoosterRevealModal(card, index, booster.length);
+    await new Promise((resolve) => setTimeout(resolve, 900));
   }
 }
 

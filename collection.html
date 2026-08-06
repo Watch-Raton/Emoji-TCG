@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styles.css" />
     <style>
       .collection-page { max-width: 1120px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+      .library-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.25rem; margin-bottom: 1.5rem; }
       .collection-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.9rem; }
       .collection-card { padding: 0.9rem; border-radius: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
       .collection-stats { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.7rem; }
@@ -27,7 +28,7 @@
             <span class="stat-pill">Découverts : <strong id="discoveredCount">0</strong>/<strong id="totalCount">0</strong></span>
           </div>
         </div>
-        <a href="index.html" class="primary-btn" style="text-decoration:none; display:inline-flex; align-items:center;">Retour au jeu</a>
+        <a href="index.html" class="primary-btn" style="text-decoration:none; display:inline-flex; align-items:center; margin-left: 1rem;">Retour au jeu</a>
       </div>
       <div id="collectionGrid" class="collection-grid"></div>
     </main>
@@ -38,10 +39,29 @@
       const collectionGrid = document.getElementById('collectionGrid');
       const discoveredCountEl = document.getElementById('discoveredCount');
       const totalCountEl = document.getElementById('totalCount');
-      const { getRarityByName, getRarityRank } = window.EmojiTCGData || {};
+      const { getRarityByName, getRarityRank, EMOJI_LIBRARY = [] } = window.EmojiTCGData || {};
+      const libraryBySymbol = new Map(EMOJI_LIBRARY.map((emoji) => [emoji.symbol, emoji]));
+      const normalizeCollectionEntry = (entry) => {
+        if (!entry) {
+          return entry;
+        }
+        const matchingEmoji = libraryBySymbol.get(entry.symbol) || EMOJI_LIBRARY.find((emoji) => emoji.name === entry.name || `${emoji.name}-${emoji.symbol}` === entry.key);
+        if (!matchingEmoji) {
+          return entry;
+        }
+        return {
+          ...entry,
+          name: matchingEmoji.name,
+          rarity: matchingEmoji.rarity?.name || entry.rarity,
+          symbol: matchingEmoji.symbol,
+          family: matchingEmoji.family || entry.family,
+          group: matchingEmoji.group || entry.group
+        };
+      };
       const raw = localStorage.getItem(storageKey);
       const state = raw ? JSON.parse(raw) : { collection: {} };
-      const entries = Object.values(state.collection || {}).sort((a, b) => {
+      const normalizedCollection = Object.fromEntries(Object.entries(state.collection || {}).map(([key, entry]) => [key, normalizeCollectionEntry(entry)]));
+      const entries = Object.values(normalizedCollection).sort((a, b) => {
         const rankDiff = (getRarityRank ? getRarityRank(a.rarity) : 5) - (getRarityRank ? getRarityRank(b.rarity) : 5);
         if (rankDiff !== 0) {
           return rankDiff;
@@ -62,7 +82,7 @@
           card.style.borderColor = `${color}55`;
           card.innerHTML = `
             <div class="emoji">${entry.symbol}</div>
-            <span class="name">${entry.name}</span>
+            <span class="name">${entry.name || entry.key || ''}</span>
             <div class="meta">x${entry.count} · <span style="color:${color}; font-weight:700;">${rarity.name}</span></div>
           `;
           collectionGrid.appendChild(card);

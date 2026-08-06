@@ -4,7 +4,8 @@
     { id: 'uncommon', name: 'Peu commun', rate: 20, weight: 20, color: '#34d399' },
     { id: 'rare', name: 'Rare', rate: 7, weight: 7, color: '#a78bfa' },
     { id: 'epic', name: 'Épique', rate: 2.5, weight: 2.5, color: '#f59e0b' },
-    { id: 'legendary', name: 'Légendaire', rate: 0.5, weight: 0.5, color: '#fb7185' }
+    { id: 'legendary', name: 'Légendaire', rate: 0.5, weight: 0.5, color: '#fb7185' },
+    { id: 'ultra-rare', name: 'Ultra rare', rate: 0.01, weight: 0.01, color: '#f43f5e' }
   ];
 
   function getRarityByName(name) {
@@ -14,14 +15,17 @@
 
   function getRarityRank(name) {
     const ranks = {
-      Légendaire: 0,
-      Épique: 1,
-      Rare: 2,
-      'Peu commun': 3,
-      Commun: 4
+      'Ultra rare': 0,
+      Légendaire: 1,
+      Épique: 2,
+      Rare: 3,
+      'Peu commun': 4,
+      Commun: 5
     };
-    return ranks[name] ?? 5;
+    return ranks[name] ?? 6;
   }
+
+  const SKIN_TONE_VARIANT_REGEX = /\bskin tone\b|light skin|medium-light|medium skin|medium-dark|dark skin/i;
 
   const RAW_EMOJI_ENTRIES = [
     {
@@ -26445,7 +26449,7 @@
     const lower = normalized.toLowerCase();
     const phraseMap = new Map([
       ['rolling on the floor laughing', 'roulant par terre de rire'],
-      ['face with tears of joy', 'visage en larmes de joie'],
+      ['face with tears of joy', 'visage avec des larmes de joie'],
       ['beaming face with smiling eyes', 'visage rayonnant aux yeux souriants'],
       ['smiling face with heart-eyes', 'visage souriant aux yeux en forme de cœur'],
       ['face with hand over mouth', 'visage avec la main sur la bouche'],
@@ -26455,15 +26459,110 @@
       ['face with diagonal mouth', 'visage avec une bouche oblique'],
       ['face with medical mask', 'visage avec un masque médical'],
       ['face with head-bandage', 'visage avec un bandage'],
-      ['face with rolling eyes', 'visage les yeux levés'],
-      ['face blowing a kiss', 'visage soufflant un baiser'],
-      ['zipper-mouth face', 'visage bouche zippée'],
+      ['face with rolling eyes', 'visage aux yeux tournés'],
+      ['face blowing a kiss', 'visage qui envoie un baiser'],
+      ['zipper-mouth face', 'visage à bouche zippée'],
       ['face screaming in fear', 'visage hurlant de peur'],
       ['face with symbols on mouth', 'visage avec des symboles sur la bouche'],
       ['star-struck', 'ébloui'],
       ['FREE button', 'bouton GRATUIT'],
       ['Japanese “free of charge” button', 'bouton japonais « gratuit »'],
-      ['Japanese “not free of charge” button', 'bouton japonais « payant »']
+      ['Japanese “not free of charge” button', 'bouton japonais « payant »'],
+      ['grinning face', 'visage souriant'],
+      ['grinning face with big eyes', 'visage souriant aux grands yeux'],
+      ['grinning face with smiling eyes', 'visage souriant aux yeux souriants'],
+      ['grinning squinting face', 'visage souriant aux yeux plissés'],
+      ['grinning face with sweat', 'visage souriant avec de la sueur'],
+      ['slightly smiling face', 'visage légèrement souriant'],
+      ['upside-down face', 'visage à l’envers'],
+      ['melting face', 'visage fondant'],
+      ['winking face', 'visage qui fait un clin d’œil'],
+      ['smiling face with smiling eyes', 'visage souriant aux yeux souriants'],
+      ['smiling face with halo', 'visage souriant avec une auréole'],
+      ['smiling face with hearts', 'visage souriant avec des cœurs'],
+      ['smiling face with open hands', 'visage souriant avec les mains ouvertes'],
+      ['kissing face', 'visage qui fait un baiser'],
+      ['smiling face', 'visage souriant'],
+      ['kissing face with closed eyes', 'visage qui fait un baiser les yeux fermés'],
+      ['kissing face with smiling eyes', 'visage qui fait un baiser les yeux souriants'],
+      ['smiling face with tear', 'visage souriant avec une larme'],
+      ['face savoring food', 'visage qui savoure un aliment'],
+      ['face with tongue', 'visage avec la langue sortie'],
+      ['winking face with tongue', 'visage qui fait un clin d’œil avec la langue sortie'],
+      ['zany face', 'visage loufoque'],
+      ['squinting face with tongue', 'visage aux yeux plissés avec la langue sortie'],
+      ['money-mouth face', 'visage à la bouche en forme de monnaie'],
+      ['saluting face', 'visage qui salue'],
+      ['neutral face', 'visage neutre'],
+      ['expressionless face', 'visage sans expression'],
+      ['face with open mouth', 'visage à la bouche ouverte'],
+      ['hushed face', 'visage calme'],
+      ['astonished face', 'visage étonné'],
+      ['flushed face', 'visage rougi'],
+      ['pleading face', 'visage implorant'],
+      ['face holding back tears', 'visage qui retient ses larmes'],
+      ['frowning face with open mouth', 'visage fronçant les sourcils avec la bouche ouverte'],
+      ['anguished face', 'visage angoissé'],
+      ['fearful face', 'visage apeuré'],
+      ['anxious face with sweat', 'visage anxieux avec de la sueur'],
+      ['sad but relieved face', 'visage triste mais soulagé'],
+      ['crying face', 'visage qui pleure'],
+      ['loudly crying face', 'visage qui pleure bruyamment'],
+      ['confounded face', 'visage déconcerté'],
+      ['persevering face', 'visage persévérant'],
+      ['disappointed face', 'visage déçu'],
+      ['downcast face with sweat', 'visage abattu avec de la sueur'],
+      ['weary face', 'visage fatigué'],
+      ['tired face', 'visage las'],
+      ['yawning face', 'visage qui bâille'],
+      ['enraged face', 'visage furieux'],
+      ['angry face', 'visage en colère'],
+      ['face with steam from nose', 'visage avec de la vapeur qui sort du nez'],
+      ['shushing face', 'visage chuchotant'],
+      ['thinking face', 'visage qui réfléchit'],
+      ['face without mouth', 'visage sans bouche'],
+      ['dotted line face', 'visage à contours pointillés'],
+      ['face in clouds', 'visage dans les nuages'],
+      ['smirking face', 'visage narquois'],
+      ['unamused face', 'visage pas amusé'],
+      ['grimacing face', 'visage grimaçant'],
+      ['face exhaling', 'visage qui expire'],
+      ['lying face', 'visage qui ment'],
+      ['face with crossed-out eyes', 'visage aux yeux barrés'],
+      ['face with spiral eyes', 'visage aux yeux en spirale'],
+      ['face with thermometer', 'visage avec un thermomètre'],
+      ['smiling face with sunglasses', 'visage souriant avec des lunettes de soleil'],
+      ['face with monocle', 'visage au monocle'],
+      ['smiling face with horns', 'visage souriant avec des cornes'],
+      ['angry face with horns', 'visage en colère avec des cornes'],
+      ['stadium', 'stade'],
+      ['shrimp', 'crevette'],
+      ['flag: cameroon', 'drapeau du Cameroun'],
+      ['flag: burundi', 'drapeau du Burundi'],
+      ['flag: chile', 'drapeau du Chili'],
+      ['flag: singapore', 'drapeau de Singapour'],
+      ['spouting whale', 'baleine qui jaillit'],
+      ['last quarter moon face', 'visage de lune du dernier quartier'],
+      ['abacus', 'abaque'],
+      ['up arrow', 'flèche vers le haut'],
+      ['motor scooter', 'scooter'],
+      ['see no evil monkey', 'singe qui ne voit pas le mal'],
+      ['globe showing americas', 'globe montrant les Amériques'],
+      ['bookmark tabs', 'onglets de marque-pages'],
+      ['woman\'s boot', 'botte de femme'],
+      ['two o\'clock', 'deux heures'],
+      ['fishing pole', 'canne à pêche'],
+      ['pound banknote', 'billet de livre sterling'],
+      ['woman walking facing right', 'femme qui marche vers la droite'],
+      ['anchor', 'ancre'],
+      ['locked with pen', 'cadenas avec stylo'],
+      ['rabbit', 'lapin'],
+      ['white large square', 'grand carré blanc'],
+      ['person with crown', 'personne avec une couronne'],
+      ['woman farmer', 'femme agricultrice'],
+      ['japanese “vacancy” button', 'bouton japonais « libre »'],
+      ['kimono', 'kimono'],
+      ['shallow pan of food', 'poêle peu profonde avec nourriture']
     ]);
 
     if (phraseMap.has(lower)) {
@@ -26480,13 +26579,28 @@
       [/\bfor\b/gi, 'pour'],
       [/\bby\b/gi, 'par'],
       [/\bon\b/gi, 'sur'],
+      [/\bslightly\b/gi, 'légèrement'],
       [/\bsmiling\b/gi, 'souriant'],
       [/\bgrinning\b/gi, 'souriant'],
-      [/\bwinking\b/gi, 'faisant un clin d’œil'],
-      [/\bclosed\b/gi, 'fermé'],
+      [/\bbeaming\b/gi, 'rayonnant'],
+      [/\bshushing\b/gi, 'chuchotant'],
+      [/\bthinking\b/gi, 'réfléchissant'],
+      [/\bsaluting\b/gi, 'qui salue'],
+      [/\bneutral\b/gi, 'neutre'],
+      [/\bexpressionless\b/gi, 'sans expression'],
       [/\bopen\b/gi, 'ouvert'],
-      [/\bbig\b/gi, 'grand'],
-      [/\bsmall\b/gi, 'petit'],
+      [/\bclosed\b/gi, 'fermé'],
+      [/\bblack\b/gi, 'noir'],
+      [/\bwhite\b/gi, 'blanc'],
+      [/\bblue\b/gi, 'bleu'],
+      [/\bgreen\b/gi, 'vert'],
+      [/\bred\b/gi, 'rouge'],
+      [/\byellow\b/gi, 'jaune'],
+      [/\bpurple\b/gi, 'violet'],
+      [/\borange\b/gi, 'orange'],
+      [/\bbrown\b/gi, 'brun'],
+      [/\bgray\b/gi, 'gris'],
+      [/\bgrey\b/gi, 'gris'],
       [/\bheart-eyes\b/gi, 'yeux en forme de cœur'],
       [/\bheart\b/gi, 'cœur'],
       [/\bhearts\b/gi, 'cœurs'],
@@ -26537,7 +26651,42 @@
       [/\bbutton\b/gi, 'bouton'],
       [/\bjapanese\b/gi, 'japonais'],
       [/\bfrench\b/gi, 'français'],
-      [/\bflag\b/gi, 'drapeau']
+      [/\bflag\b/gi, 'drapeau'],
+      [/\btears\b/gi, 'larmes'],
+      [/\btear\b/gi, 'larme'],
+      [/\bjoy\b/gi, 'joie'],
+      [/\brolling\b/gi, 'qui roule'],
+      [/\bblowing\b/gi, 'qui envoie'],
+      [/\bkiss\b/gi, 'baiser'],
+      [/\bkisses\b/gi, 'baisers'],
+      [/\braised\b/gi, 'levé'],
+      [/\beyebrow\b/gi, 'sourcil'],
+      [/\beyebrows\b/gi, 'sourcils'],
+      [/\bupside-down\b/gi, 'à l’envers'],
+      [/\bmelting\b/gi, 'fondant'],
+      [/\bwinking\b/gi, 'qui fait un clin d’œil'],
+      [/\bhalo\b/gi, 'auréole'],
+      [/\bstar-struck\b/gi, 'ébloui'],
+      [/\bpeeking\b/gi, 'qui regarde à travers'],
+      [/\bmedical\b/gi, 'médical'],
+      [/\bsymbols\b/gi, 'symboles'],
+      [/\bsteam\b/gi, 'vapeur'],
+      [/\bnose\b/gi, 'nez'],
+      [/\bsavoring\b/gi, 'qui savoure'],
+      [/\btongue\b/gi, 'langue'],
+      [/\bmoney-mouth\b/gi, 'bouche en forme de monnaie'],
+      [/\bsquinting\b/gi, 'aux yeux plissés'],
+      [/\bspiral\b/gi, 'en spirale'],
+      [/\bcrossed-out\b/gi, 'barrés'],
+      [/\bthermometer\b/gi, 'thermomètre'],
+      [/\bmonocle\b/gi, 'monocle'],
+      [/\bhorns\b/gi, 'cornes'],
+      [/\bexhaling\b/gi, 'qui expire'],
+      [/\blying\b/gi, 'qui ment'],
+      [/\bsmirking\b/gi, 'narquois'],
+      [/\bunamused\b/gi, 'pas amusé'],
+      [/\bgrimacing\b/gi, 'grimaçant'],
+      [/\bclouds\b/gi, 'nuages']
     ];
 
     let result = normalized.replace(/-/g, ' ');
@@ -26548,8 +26697,12 @@
     return result;
   }
 
-  const EMOJI_LIBRARY = RAW_EMOJI_ENTRIES.map((emoji, index, arr) => {
+  const EMOJI_LIBRARY = RAW_EMOJI_ENTRIES.filter((emoji) => !SKIN_TONE_VARIANT_REGEX.test(emoji.name)).map((emoji, index, arr) => {
     const rarityName = (() => {
+      if (emoji.symbol === '🦝' || emoji.name === 'raccoon') {
+        return 'Ultra rare';
+      }
+
       const ratio = index / Math.max(1, arr.length);
       if (ratio < 0.7) return 'Commun';
       if (ratio < 0.9) return 'Peu commun';
@@ -26570,6 +26723,7 @@
     RARITY_CONFIG,
     EMOJI_LIBRARY,
     getRarityByName,
-    getRarityRank
+    getRarityRank,
+    translateEmojiName
   };
 })(window);
