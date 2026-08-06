@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bibliothèque Emoji - Emoji TCG</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .library-page { max-width: 1280px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+      .library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.8rem; }
+      .library-card { padding: 0.85rem; border-radius: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); }
+      .library-card .emoji { font-size: 1.8rem; }
+      .library-card .name { display: block; font-weight: 700; margin-top: 0.35rem; word-break: break-word; }
+      .library-card .rate { display: inline-block; margin-top: 0.4rem; padding: 0.25rem 0.55rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+      .library-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+      .library-toolbar { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1rem; }
+      .library-toolbar input { flex: 1; min-width: 220px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: var(--text); padding: 0.8rem 0.95rem; border-radius: 999px; }
+      .library-toolbar button { border: 0; padding: 0.8rem 1rem; border-radius: 999px; background: rgba(255,255,255,0.1); color: white; cursor: pointer; }
+      .library-stats { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.7rem; }
+      .stat-pill { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.75rem; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: var(--text); font-size: 0.92rem; }
+      .library-family-section { margin-bottom: 1.2rem; }
+      .family-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.7rem; padding-bottom: 0.35rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
+      .family-header h3 { margin: 0; font-size: 1.05rem; }
+      .family-count { color: var(--muted); font-size: 0.9rem; }
+      @media (max-width: 760px) { .library-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } }
+    </style>
+  </head>
+  <body>
+    <main class="library-page">
+      <div class="library-header">
+        <div>
+          <p class="eyebrow">Emoji TCG</p>
+          <h1>Bibliothèque complète</h1>
+          <p class="subtitle">Consulte l’intégralité des emojis disponibles et leur taux d’obtention par rareté.</p>
+          <div class="library-stats">
+            <span class="stat-pill">Découverts : <strong id="discoveredCount">0</strong>/<strong id="totalCount">0</strong></span>
+          </div>
+        </div>
+        <a href="index.html" class="primary-btn" style="text-decoration:none; display:inline-flex; align-items:center;">Retour au jeu</a>
+      </div>
+
+      <div class="library-toolbar">
+        <input id="librarySearch" type="text" placeholder="Rechercher un emoji..." />
+        <button id="sortRateBtn">Trier par taux</button>
+      </div>
+
+      <div id="libraryGrid" class="library-grid"></div>
+    </main>
+
+    <script src="emoji-data.js"></script>
+    <script>
+      const libraryGrid = document.getElementById('libraryGrid');
+      const searchInput = document.getElementById('librarySearch');
+      const sortRateBtn = document.getElementById('sortRateBtn');
+      const discoveredCountEl = document.getElementById('discoveredCount');
+      const totalCountEl = document.getElementById('totalCount');
+      const library = Array.isArray(window.EmojiTCGData?.EMOJI_LIBRARY) ? window.EmojiTCGData.EMOJI_LIBRARY : [];
+      const { getRarityByName, getRarityRank: sharedGetRarityRank } = window.EmojiTCGData || {};
+      const storageKey = 'emoji-tcg-save-v1';
+      let sortAscending = false;
+
+      function getDisplayName(item) {
+        return item.name || item.symbol;
+      }
+
+      function getRarityRankValue(rarityName) {
+        if (sharedGetRarityRank) {
+          return sharedGetRarityRank(rarityName);
+        }
+        const ranks = {
+          Légendaire: 0,
+          Épique: 1,
+          Rare: 2,
+          'Peu commun': 3,
+          Commun: 4
+        };
+        return ranks[rarityName] ?? 5;
+      }
+
+      function getFamilyForItem(item) {
+        return item.family || 'Autres';
+      }
+
+      function getFamilyForCollectionEntry(entry) {
+        const name = (entry.name || entry.key || '').toLowerCase();
+        const familyByName = {
+          sourire: 'Émotions',
+          cool: 'Émotions',
+          robot: 'Métier',
+          renard: 'Animaux',
+          dragon: 'Animaux',
+          licorne: 'Animaux',
+          poisson: 'Animaux',
+          papillon: 'Animaux',
+          'arc-en-ciel': 'Nature',
+          trèfle: 'Nature',
+          éclair: 'Nature',
+          lune: 'Nature',
+          soleil: 'Nature',
+          planète: 'Nature',
+          fleur: 'Nature',
+          océan: 'Nature',
+          pizza: 'Nourriture',
+          cupcake: 'Nourriture',
+          fusée: 'Voyage',
+          manette: 'Loisirs',
+          musique: 'Loisirs',
+          cible: 'Objets',
+          diamant: 'Objets',
+          soucoupe: 'Objets',
+          puzzle: 'Objets',
+          baguette: 'Objets',
+          château: 'Objets',
+          ballon: 'Objets'
+        };
+        return familyByName[name] || 'Autres';
+      }
+
+      function renderLibrary(filter = '') {
+        if (!Array.isArray(library) || library.length === 0) {
+          libraryGrid.innerHTML = '<div class="empty-state">La bibliothèque est indisponible pour le moment.</div>';
+          return;
+        }
+
+        const term = filter.toLowerCase();
+        const saved = localStorage.getItem(storageKey);
+        const state = saved ? JSON.parse(saved) : { collection: {} };
+        const collectionEntries = Object.values(state.collection || {});
+        const discoveredByFamily = new Map();
+
+        collectionEntries.forEach((entry) => {
+          const family = getFamilyForCollectionEntry(entry);
+          discoveredByFamily.set(family, (discoveredByFamily.get(family) || 0) + 1);
+        });
+
+        const filtered = library.filter((item) => {
+          const text = `${item.symbol} ${getDisplayName(item)} ${item.family || ''} ${item.rarity.name}`.toLowerCase();
+          return text.includes(term);
+        });
+
+        const grouped = filtered.reduce((acc, item) => {
+          const family = getFamilyForItem(item);
+          if (!acc.has(family)) {
+            acc.set(family, []);
+          }
+          acc.get(family).push(item);
+          return acc;
+        }, new Map());
+
+        const familyOrder = ['Animaux', 'Nature', 'Nourriture', 'Émotions', 'Métier', 'Loisirs', 'Objets', 'Voyage', 'Autres'];
+        const families = [...grouped.entries()].sort((a, b) => {
+          const indexA = familyOrder.indexOf(a[0]);
+          const indexB = familyOrder.indexOf(b[0]);
+          const baseDiff = (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+          if (baseDiff !== 0) {
+            return baseDiff;
+          }
+          return a[0].localeCompare(b[0]);
+        });
+
+        libraryGrid.innerHTML = '';
+        families.forEach(([family, items]) => {
+          const sorted = [...items].sort((a, b) => {
+            const rankDiff = getRarityRankValue(a.rarity.name) - getRarityRankValue(b.rarity.name);
+            if (rankDiff !== 0) {
+              return rankDiff;
+            }
+            if (sortAscending) {
+              return a.rate - b.rate;
+            }
+            return b.rate - a.rate;
+          });
+
+          const section = document.createElement('section');
+          section.className = 'library-family-section';
+          const totalInFamily = sorted.length;
+          const discoveredInFamily = discoveredByFamily.get(family) || 0;
+          section.innerHTML = `
+            <div class="family-header">
+              <h3>${family}</h3>
+              <span class="family-count">Découverts : ${discoveredInFamily}/${totalInFamily}</span>
+            </div>
+          `;
+          const familyGrid = document.createElement('div');
+          familyGrid.className = 'library-grid';
+          sorted.forEach((item) => {
+            const card = document.createElement('article');
+            card.className = 'library-card';
+            const rarity = getRarityByName ? getRarityByName(item.rarity.name) : item.rarity;
+            card.innerHTML = `
+              <div class="emoji">${item.symbol}</div>
+              <span class="name">${getDisplayName(item)}</span>
+              <span class="rate" style="background:${rarity.color}22; color:${rarity.color};">${rarity.name} · ${item.rate}%</span>
+            `;
+            familyGrid.appendChild(card);
+          });
+          section.appendChild(familyGrid);
+          libraryGrid.appendChild(section);
+        });
+      }
+
+      function updateDiscoveryCount() {
+        const saved = localStorage.getItem(storageKey);
+        const state = saved ? JSON.parse(saved) : { collection: {} };
+        const discovered = Object.keys(state.collection || {}).filter((key) => (state.collection[key]?.count || 0) > 0).length;
+        discoveredCountEl.textContent = discovered;
+        totalCountEl.textContent = library.length;
+      }
+
+      searchInput.addEventListener('input', (event) => renderLibrary(event.target.value));
+      sortRateBtn.addEventListener('click', () => {
+        sortAscending = !sortAscending;
+        sortRateBtn.textContent = sortAscending ? 'Trier par taux ↑' : 'Trier par taux ↓';
+        renderLibrary(searchInput.value);
+      });
+
+      updateDiscoveryCount();
+      renderLibrary('');
+    </script>
+  </body>
+</html>

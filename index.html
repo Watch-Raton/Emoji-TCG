@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Emoji TCG</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Emoji TCG</p>
+          <h1>Ouvre des boosters et complète ta collection</h1>
+          <p class="subtitle">
+            Chaque heure, tu peux ouvrir trois nouveaux booster de 10 emojis.
+            Chaque booster contient des emojis de différentes raretés, allant de Commun à Légendaire. Les taux d’obtention sont affichés dans la bibliothèque complète.
+          </p>
+          </div>
+        </div>
+        <button id="openBoosterBtn" class="primary-btn">Ouvrir un booster</button>
+      </header>
+
+      <section class="status-grid">
+        <article class="card stat-card">
+          <h2>Boosters disponibles</h2>
+          <p id="boostersAvailableText" class="value">2</p>
+        </article>
+        <article class="card stat-card">
+          <h2>Temps restant</h2>
+          <p id="cooldownText" class="value">Disponible maintenant</p>
+        </article>
+        <article class="card stat-card">
+          <h2>Émojis découverts</h2>
+          <p id="discoveredCount" class="value">0/0</p>
+        </article>
+        <article class="card stat-card">
+          <h2>Boosters ouverts</h2>
+          <p id="boostersOpened" class="value">0</p>
+        </article>
+      </section>
+
+      <section class="card results-panel">
+        <div class="panel-header">
+          <h2>Dernier booster</h2>
+          <span id="lastResultBadge" class="pill">En attente</span>
+        </div>
+        <div id="boosterResults" class="results-grid"></div>
+      </section>
+
+      <section class="card collection-panel">
+        <div class="panel-header">
+          <h2>Collection</h2>
+          <a href="collection.html" class="pill" style="text-decoration:none;">Voir toute la collection</a>
+        </div>
+        <div id="collectionList" class="collection-list"></div>
+      </section>
+
+      <section class="card library-panel">
+        <div class="panel-header">
+          <h2>Bibliothèque d’emojis</h2>
+          <a href="library.html" class="pill" style="text-decoration:none;">Voir la bibliothèque complète</a>
+        </div>
+        <p class="subtitle" style="margin-bottom: 0.8rem;">La bibliothèque complète affiche les taux d’obtention par rareté, par exemple Rare à 7%, Épique à 2,5%, Légendaire à 0,5%.</p>
+        <div id="libraryList" class="collection-list"></div>
+      </section>
+    </main>
+
+    <script src="emoji-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Collection - Emoji TCG</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .collection-page { max-width: 1120px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+      .collection-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.9rem; }
+      .collection-card { padding: 0.9rem; border-radius: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+      .collection-stats { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.7rem; }
+      .stat-pill { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.75rem; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: var(--text); font-size: 0.92rem; }
+      .collection-card .emoji { font-size: 2rem; }
+      .collection-card .name { display: block; font-weight: 700; margin-top: 0.35rem; }
+      .collection-card .meta { margin-top: 0.35rem; color: var(--muted); font-size: 0.92rem; }
+    </style>
+  </head>
+  <body>
+    <main class="collection-page">
+      <div class="library-header">
+        <div>
+          <p class="eyebrow">Emoji TCG</p>
+          <h1>Collection</h1>
+          <p class="subtitle">Consulte tous les emojis que tu as obtenus, avec la couleur de rareté associée.</p>
+          <div class="collection-stats">
+            <span class="stat-pill">Découverts : <strong id="discoveredCount">0</strong>/<strong id="totalCount">0</strong></span>
+          </div>
+        </div>
+        <a href="index.html" class="primary-btn" style="text-decoration:none; display:inline-flex; align-items:center;">Retour au jeu</a>
+      </div>
+      <div id="collectionGrid" class="collection-grid"></div>
+    </main>
+
+    <script src="emoji-data.js"></script>
+    <script>
+      const storageKey = 'emoji-tcg-save-v1';
+      const collectionGrid = document.getElementById('collectionGrid');
+      const discoveredCountEl = document.getElementById('discoveredCount');
+      const totalCountEl = document.getElementById('totalCount');
+      const { getRarityByName, getRarityRank } = window.EmojiTCGData || {};
+      const raw = localStorage.getItem(storageKey);
+      const state = raw ? JSON.parse(raw) : { collection: {} };
+      const entries = Object.values(state.collection || {}).sort((a, b) => {
+        const rankDiff = (getRarityRank ? getRarityRank(a.rarity) : 5) - (getRarityRank ? getRarityRank(b.rarity) : 5);
+        if (rankDiff !== 0) {
+          return rankDiff;
+        }
+        return b.count - a.count;
+      });
+      const discovered = Object.keys(state.collection || {}).filter((key) => (state.collection[key]?.count || 0) > 0).length;
+      discoveredCountEl.textContent = discovered;
+      totalCountEl.textContent = window.EmojiTCGData.EMOJI_LIBRARY.length;
+
+      if (entries.length) {
+        collectionGrid.innerHTML = '';
+        entries.forEach((entry) => {
+          const rarity = getRarityByName ? getRarityByName(entry.rarity) : { name: entry.rarity, color: '#60a5fa' };
+          const color = rarity.color || '#60a5fa';
+          const card = document.createElement('article');
+          card.className = 'collection-card';
+          card.style.borderColor = `${color}55`;
+          card.innerHTML = `
+            <div class="emoji">${entry.symbol}</div>
+            <span class="name">${entry.name}</span>
+            <div class="meta">x${entry.count} · <span style="color:${color}; font-weight:700;">${rarity.name}</span></div>
+          `;
+          collectionGrid.appendChild(card);
+        });
+      } else {
+        collectionGrid.innerHTML = '<div class="empty-state">Aucune carte dans la collection pour le moment.</div>';
+      }
+    </script>
+  </body>
+</html>
