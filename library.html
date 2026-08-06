@@ -77,34 +77,58 @@
         return ranks[rarityName] ?? 5;
       }
 
+      const FAMILY_NAME_MAP = {
+        'Smileys & Emotion': 'Émotions',
+        'People & Body': 'Personnes & corps',
+        'Animals & Nature': 'Animaux et nature',
+        'Food & Drink': 'Nourriture et boisson',
+        'Travel & Places': 'Voyage et lieux',
+        Activities: 'Activités',
+        Objects: 'Objets',
+        Symbols: 'Symboles',
+        Flags: 'Drapeaux'
+      };
+
+      function getFamilyLabel(group) {
+        if (!group) {
+          return 'Autres';
+        }
+        return FAMILY_NAME_MAP[group] || group || 'Autres';
+      }
+
       function getFamilyForItem(item) {
-        return item.family || 'Autres';
+        return getFamilyLabel(item.family || item.group);
       }
 
       function getFamilyForCollectionEntry(entry) {
+        const group = entry.family || entry.group;
+        if (group) {
+          return getFamilyLabel(group);
+        }
+
         const name = (entry.name || entry.key || '').toLowerCase();
         const familyByName = {
           sourire: 'Émotions',
           cool: 'Émotions',
-          robot: 'Métier',
-          renard: 'Animaux',
-          dragon: 'Animaux',
-          licorne: 'Animaux',
-          poisson: 'Animaux',
-          papillon: 'Animaux',
-          'arc-en-ciel': 'Nature',
-          trèfle: 'Nature',
-          éclair: 'Nature',
-          lune: 'Nature',
-          soleil: 'Nature',
-          planète: 'Nature',
-          fleur: 'Nature',
-          océan: 'Nature',
-          pizza: 'Nourriture',
-          cupcake: 'Nourriture',
-          fusée: 'Voyage',
-          manette: 'Loisirs',
-          musique: 'Loisirs',
+          robot: 'Personnes & corps',
+          renard: 'Animaux et nature',
+          dragon: 'Animaux et nature',
+          licorne: 'Animaux et nature',
+          poisson: 'Animaux et nature',
+          papillon: 'Animaux et nature',
+          'arc-en-ciel': 'Animaux et nature',
+          trèfle: 'Animaux et nature',
+          éclair: 'Animaux et nature',
+          lune: 'Voyage et lieux',
+          soleil: 'Voyage et lieux',
+          planète: 'Voyage et lieux',
+          fleur: 'Animaux et nature',
+          océan: 'Animaux et nature',
+          pizza: 'Nourriture et boisson',
+          cupcake: 'Nourriture et boisson',
+          fusée: 'Voyage et lieux',
+          manette: 'Objets',
+          musique: 'Objets',
           cible: 'Objets',
           diamant: 'Objets',
           soucoupe: 'Objets',

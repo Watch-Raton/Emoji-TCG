@@ -12,37 +12,7 @@ const RARITY_CONFIG = SHARED_RARITY_CONFIG.length ? SHARED_RARITY_CONFIG : [
   { name: 'Légendaire', weight: 0.5, color: '#fb7185' }
 ];
 
-const EMOJI_POOL = [
-  { symbol: '😀', name: 'Sourire' },
-  { symbol: '😎', name: 'Cool' },
-  { symbol: '🤖', name: 'Robot' },
-  { symbol: '🦊', name: 'Renard' },
-  { symbol: '🐉', name: 'Dragon' },
-  { symbol: '🌈', name: 'Arc-en-ciel' },
-  { symbol: '🍀', name: 'Trèfle' },
-  { symbol: '⚡', name: 'Éclair' },
-  { symbol: '🎮', name: 'Manette' },
-  { symbol: '🎵', name: 'Musique' },
-  { symbol: '🌙', name: 'Lune' },
-  { symbol: '☀️', name: 'Soleil' },
-  { symbol: '🪐', name: 'Planète' },
-  { symbol: '🧠', name: 'Intelligence' },
-  { symbol: '🦄', name: 'Licorne' },
-  { symbol: '🐠', name: 'Poisson' },
-  { symbol: '🌸', name: 'Fleur' },
-  { symbol: '🍕', name: 'Pizza' },
-  { symbol: '🚀', name: 'Fusée' },
-  { symbol: '🧁', name: 'Cupcake' },
-  { symbol: '🎯', name: 'Cible' },
-  { symbol: '💎', name: 'Diamant' },
-  { symbol: '🛸', name: 'Soucoupe' },
-  { symbol: '🧩', name: 'Puzzle' },
-  { symbol: '🪄', name: 'Baguette' },
-  { symbol: '🏰', name: 'Château' },
-  { symbol: '🌊', name: 'Océan' },
-  { symbol: '🦋', name: 'Papillon' },
-  { symbol: '🎈', name: 'Ballon' }
-];
+const EMOJI_POOL = EMOJI_LIBRARY;
 
 let state = loadState();
 let displayedBoosterSignature = null;
@@ -86,10 +56,14 @@ openBoosterBtn.addEventListener('click', async () => {
       symbol: card.symbol,
       name: card.name,
       count: 0,
-      rarity: card.rarity
+      rarity: card.rarity,
+      group: card.group,
+      family: card.family
     };
     entry.count += 1;
     entry.rarity = card.rarity;
+    entry.group = card.group;
+    entry.family = card.family;
     state.collection[card.key] = entry;
   }
 
@@ -99,14 +73,27 @@ openBoosterBtn.addEventListener('click', async () => {
 });
 
 function createBooster() {
+  const matchingPoolByRarity = new Map();
+
+  EMOJI_LIBRARY.forEach((emoji) => {
+    const rarityName = emoji.rarity?.name || 'Commun';
+    if (!matchingPoolByRarity.has(rarityName)) {
+      matchingPoolByRarity.set(rarityName, []);
+    }
+    matchingPoolByRarity.get(rarityName).push(emoji);
+  });
+
   return Array.from({ length: 10 }, () => {
     const rarity = pickWeightedRarity();
-    const emoji = EMOJI_POOL[Math.floor(Math.random() * EMOJI_POOL.length)];
+    const pool = matchingPoolByRarity.get(rarity.name) || EMOJI_LIBRARY;
+    const emoji = pool[Math.floor(Math.random() * pool.length)];
     return {
       key: makeEmojiKey(emoji),
       symbol: emoji.symbol,
       name: emoji.name,
-      rarity: rarity.name
+      rarity: rarity.name,
+      group: emoji.group,
+      family: emoji.family
     };
   });
 }
