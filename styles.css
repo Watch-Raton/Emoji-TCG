@@ -300,18 +300,44 @@ h1 {
 }
 
 .reveal-emoji-stage {
+  position: relative;
   display: grid;
   place-items: center;
   min-height: 180px;
   margin: 1rem 0;
   border-radius: 24px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 0 24px rgba(255, 255, 255, 0.03);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 0 24px rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(255, 255, 255, 0.06), 0 0 30px rgba(167, 139, 250, 0.24), 0 0 60px rgba(250, 204, 21, 0.16);
+  overflow: hidden;
+}
+
+.reveal-emoji-stage::before {
+  content: '';
+  position: absolute;
+  inset: -16px;
+  border-radius: 28px;
+  background: radial-gradient(circle, rgba(250, 204, 21, 0.34), rgba(167, 139, 250, 0.18) 45%, transparent 72%);
+  filter: blur(18px);
+  opacity: 0.95;
+  animation: revealHalo 1.8s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .reveal-emoji {
+  position: relative;
+  z-index: 1;
   font-size: clamp(3.4rem, 8vw, 5.4rem);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  text-shadow: 0 0 16px rgba(250, 204, 21, 0.72), 0 0 32px rgba(167, 139, 250, 0.46);
+  filter: drop-shadow(0 0 14px rgba(250, 204, 21, 0.38));
+  animation: revealEmojiPulse 1.6s ease-in-out infinite;
+}
+
+.reveal-emoji-stage.is-visible .reveal-emoji,
+.reveal-info.is-visible,
+.booster-reveal-panel.is-visible {
+  animation: none;
 }
 
 .reveal-info {
@@ -357,6 +383,38 @@ h1 {
   color: var(--muted);
 }
 
+.reveal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.reveal-next-btn,
+.reveal-close-btn {
+  border: 0;
+  padding: 0.8rem 1rem;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.reveal-next-btn {
+  background: linear-gradient(135deg, var(--accent), #6d28d9);
+  box-shadow: 0 10px 25px rgba(139, 92, 246, 0.25);
+}
+
+.reveal-close-btn {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.reveal-next-btn:hover,
+.reveal-close-btn:hover {
+  transform: translateY(-1px);
+}
+
 .reveal-progress {
   height: 8px;
   margin-top: 1rem;
@@ -382,20 +440,20 @@ h1 {
 }
 
 .result-item.reveal-card {
-  animation: revealPop 0.35s ease both;
+  animation: none;
   transform-origin: center;
 }
 
 .result-item.reveal-card.rare {
-  animation-name: revealSpin;
+  animation-name: none;
 }
 
 .result-item.reveal-card.epic {
-  animation-name: revealPulse;
+  animation-name: none;
 }
 
 .result-item.reveal-card.legendary {
-  animation-name: revealGlow;
+  animation-name: none;
 }
 
 @keyframes revealPop {
@@ -404,6 +462,45 @@ h1 {
     transform: translateY(10px) scale(0.95);
   }
   to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes revealHalo {
+  0%,
+  100% {
+    transform: scale(0.96);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+}
+
+@keyframes revealEmojiPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 14px rgba(250, 204, 21, 0.38));
+  }
+  50% {
+    transform: scale(1.04);
+    filter: drop-shadow(0 0 22px rgba(250, 204, 21, 0.6));
+  }
+}
+
+@keyframes revealCardIn {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.95);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.02);
+  }
+  100% {
     opacity: 1;
     transform: translateY(0) scale(1);
   }

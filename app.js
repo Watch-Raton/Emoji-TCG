@@ -76,7 +76,11 @@ openBoosterBtn.addEventListener('click', async () => {
   state.lastOpenedAt = now;
   state.boostersOpened += 1;
   state.lastBooster = booster;
-  state.boosterUsesThisHour = (state.boosterUsesThisHour || 0) + 1;
+  if ((state.exchangeBoosterCredits || 0) > 0) {
+    state.exchangeBoosterCredits -= 1;
+  } else {
+    state.boosterUsesThisHour = (state.boosterUsesThisHour || 0) + 1;
+  }
   state.lastBoosterType = 'normal';
   state.lastBoosterSignature = getBoosterSignature(booster);
 
@@ -150,6 +154,7 @@ function createEmptyState() {
     lastOpenedAt: null,
     lastBooster: [],
     boosterUsesThisHour: 0,
+    exchangeBoosterCredits: 0,
     lastResetHour: null,
     lastBoosterSignature: null
   };
@@ -198,7 +203,7 @@ function getAvailableBoosters(now) {
     state.boosterUsesThisHour = 0;
   }
 
-  return BOOSTERS_PER_HOUR - (state.boosterUsesThisHour || 0);
+  return BOOSTERS_PER_HOUR - (state.boosterUsesThisHour || 0) + Math.max(0, state.exchangeBoosterCredits || 0);
 }
 
 function getRarityStyle(name) {
@@ -248,6 +253,10 @@ function ensureBoosterRevealModal() {
         <div class="reveal-meta-row"><span class="reveal-label">Taux d’obtention</span><strong class="reveal-rate">—</strong></div>
       </div>
       <div class="reveal-progress"><span class="reveal-progress-fill"></span></div>
+      <div class="reveal-actions">
+        <button type="button" class="reveal-next-btn">Suivant</button>
+        <button type="button" class="reveal-close-btn">Fermer</button>
+      </div>
       <p class="reveal-counter">1/10</p>
     </div>
   `;
@@ -264,11 +273,16 @@ function ensureBoosterRevealModal() {
     boosterRevealModal.setAttribute('aria-hidden', 'true');
   });
 
+  boosterRevealModal.querySelector('.reveal-close-btn').addEventListener('click', () => {
+    boosterRevealModal.classList.remove('is-open');
+    boosterRevealModal.setAttribute('aria-hidden', 'true');
+  });
+
   document.body.appendChild(boosterRevealModal);
   return boosterRevealModal;
 }
 
-function updateBoosterRevealModal(card, index, total) {
+function updateBoosterRevealModal(card, index, total, onNext, onClose) {
   const modal = ensureBoosterRevealModal();
   const rarityStyle = getRarityStyle(card.rarity);
   const panel = modal.querySelector('.booster-reveal-panel');
@@ -281,6 +295,10 @@ function updateBoosterRevealModal(card, index, total) {
   const rarityEl = modal.querySelector('.reveal-rarity');
   const rateEl = modal.querySelector('.reveal-rate');
   const counter = modal.querySelector('.reveal-counter');
+  const nextBtn = modal.querySelector('.reveal-next-btn');
+  const closeBtn = modal.querySelector('.reveal-close-btn');
+  const stage = modal.querySelector('.reveal-emoji-stage');
+  const info = modal.querySelector('.reveal-info');
 
   title.textContent = `Émoji ${index + 1}/${total}`;
   emojiStage.textContent = card.symbol;
@@ -303,33 +321,39 @@ function updateBoosterRevealModal(card, index, total) {
     newPill.style.display = 'inline-flex';
   }
 
+  nextBtn.style.display = index < total - 1 ? 'inline-flex' : 'none';
+  closeBtn.style.display = index < total - 1 ? 'inline-flex' : 'inline-flex';
+  nextBtn.textContent = index < total - 1 ? 'Suivant' : 'Fermer';
+
+  nextBtn.onclick = () => {
+    if (typeof onNext === 'function') {
+      onNext();
+    }
+  };
+  closeBtn.onclick = () => {
+    if (typeof onClose === 'function') {
+      onClose();
+    } else {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+  };
+
+  stage.classList.remove('is-visible');
+  info.classList.remove('is-visible');
+  panel.classList.remove('is-visible');
+  void stage.offsetWidth;
+  void info.offsetWidth;
+  void panel.offsetWidth;
+  stage.classList.add('is-visible');
+  info.classList.add('is-visible');
+  panel.classList.add('is-visible');
+
   modal.classList.add('is-open');
   modal.setAttribute('aria-hidden', 'false');
 }
 
-function render() {
-  const now = Date.now();
-  const available = Math.max(0, getAvailableBoosters(now));
-  const canOpen = available > 0;
-
-  openBoosterBtn.disabled = !canOpen;
-  openBoosterBtn.textContent = canOpen ? `Ouvrir un booster (${available} dispo)` : 'Plus de boosters';
-
-  const remaining = Math.max(0, BOOSTER_COOLDOWN_MS - (now % BOOSTER_COOLDOWN_MS));
-  const hours = String(Math.floor(remaining / 3600000)).padStart(2, '0');
-  const minutes = String(Math.floor((remaining % 3600000) / 60000)).padStart(2, '0');
-  const seconds = String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0');
-  cooldownText.textContent = `${hours}:${minutes}:${seconds}`;
-
-  boostersAvailableText.textContent = String(available);
-  const discovered = Object.values(state.collection).filter((entry) => (entry.count || 0) > 0).length;
-  discoveredCount.textContent = `${discovered}/${EMOJI_LIBRARY.length}`;
-  if (headerDiscoveredCount && headerTotalCount) {
-    headerDiscoveredCount.textContent = discovered;
-    headerTotalCount.textContent = EMOJI_LIBRARY.length;
-  }
-  boostersOpened.textContent = state.boostersOpened;
-
+function renderBoosterSummary() {
   if (state.lastBooster.length) {
     lastResultBadge.textContent = 'Nouveau booster';
     const signature = state.lastBoosterSignature || getBoosterSignature(state.lastBooster);
@@ -362,6 +386,32 @@ function render() {
     lastResultBadge.textContent = 'En attente';
     boosterResults.innerHTML = '<div class="empty-state">Aucun booster ouvert pour le moment.</div>';
   }
+}
+
+function render() {
+  const now = Date.now();
+  const available = Math.max(0, getAvailableBoosters(now));
+  const canOpen = available > 0;
+
+  openBoosterBtn.disabled = !canOpen;
+  openBoosterBtn.textContent = canOpen ? `Ouvrir un booster (${available} dispo)` : 'Plus de boosters';
+
+  const remaining = Math.max(0, BOOSTER_COOLDOWN_MS - (now % BOOSTER_COOLDOWN_MS));
+  const hours = String(Math.floor(remaining / 3600000)).padStart(2, '0');
+  const minutes = String(Math.floor((remaining % 3600000) / 60000)).padStart(2, '0');
+  const seconds = String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0');
+  cooldownText.textContent = `${hours}:${minutes}:${seconds}`;
+
+  boostersAvailableText.textContent = String(available);
+  const discovered = Object.values(state.collection).filter((entry) => (entry.count || 0) > 0).length;
+  discoveredCount.textContent = `${discovered}/${EMOJI_LIBRARY.length}`;
+  if (headerDiscoveredCount && headerTotalCount) {
+    headerDiscoveredCount.textContent = discovered;
+    headerTotalCount.textContent = EMOJI_LIBRARY.length;
+  }
+  boostersOpened.textContent = state.boostersOpened;
+
+  renderBoosterSummary();
 
   const collectionEntries = Object.values(state.collection).sort((a, b) => b.count - a.count);
   if (collectionEntries.length) {
@@ -450,33 +500,57 @@ function showToast(message) {
 }
 
 async function revealBooster(booster) {
-  boosterResults.innerHTML = '';
+  return new Promise((resolve) => {
+    let currentIndex = 0;
 
-  for (let index = 0; index < booster.length; index += 1) {
-    const card = booster[index];
-    const rarityStyle = getRarityStyle(card.rarity);
-    const item = document.createElement('article');
-    item.className = 'result-item reveal-card';
-    const rarityKey = (card.rarity || '').toLowerCase();
-    if (rarityKey.includes('rare')) {
-      item.classList.add('rare');
-    }
-    if (rarityKey.includes('épique')) {
-      item.classList.add('epic');
-    }
-    if (rarityKey.includes('légendaire')) {
-      item.classList.add('legendary');
-    }
-    item.innerHTML = `
-      <div class="emoji">${card.symbol}</div>
-      <span class="name">${card.name}</span>
-      <span class="rarity" style="background:${rarityStyle ? `${rarityStyle.color}22` : '#ffffff22'}; color:${rarityStyle?.color || '#ffffff'};">${card.rarity}</span>
-      ${card.wasOwned ? '' : '<span class="new-pill">Nouveau !</span>'}
-    `;
-    boosterResults.appendChild(item);
-    updateBoosterRevealModal(card, index, booster.length);
-    await new Promise((resolve) => setTimeout(resolve, 900));
-  }
+    const renderCurrentCard = () => {
+      const card = booster[currentIndex];
+      const rarityStyle = getRarityStyle(card.rarity);
+      const item = document.createElement('article');
+      item.className = 'result-item reveal-card';
+      const rarityKey = (card.rarity || '').toLowerCase();
+      if (rarityKey.includes('rare')) {
+        item.classList.add('rare');
+      }
+      if (rarityKey.includes('épique')) {
+        item.classList.add('epic');
+      }
+      if (rarityKey.includes('légendaire')) {
+        item.classList.add('legendary');
+      }
+      item.innerHTML = `
+        <div class="emoji">${card.symbol}</div>
+        <span class="name">${card.name}</span>
+        <span class="rarity" style="background:${rarityStyle ? `${rarityStyle.color}22` : '#ffffff22'}; color:${rarityStyle?.color || '#ffffff'};">${card.rarity}</span>
+        ${card.wasOwned ? '' : '<span class="new-pill">Nouveau !</span>'}
+      `;
+      boosterResults.innerHTML = '';
+      boosterResults.appendChild(item);
+    };
+
+    const closeReveal = () => {
+      boosterRevealModal?.classList.remove('is-open');
+      boosterRevealModal?.setAttribute('aria-hidden', 'true');
+      renderBoosterSummary();
+      resolve();
+    };
+
+    const showNext = () => {
+      if (currentIndex >= booster.length - 1) {
+        closeReveal();
+        return;
+      }
+
+      currentIndex += 1;
+      renderCurrentCard();
+      updateBoosterRevealModal(booster[currentIndex], currentIndex, booster.length, showNext, closeReveal);
+    };
+
+    boosterResults.innerHTML = '';
+    boosterResults.style.cursor = 'default';
+    renderCurrentCard();
+    updateBoosterRevealModal(booster[0], 0, booster.length, showNext, closeReveal);
+  });
 }
 
 setInterval(() => {
