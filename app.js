@@ -443,7 +443,7 @@ function render() {
     cooldownText.textContent = 'Disponible maintenant';
   }
 
-  boostersAvailableText.textContent = String(available);
+  boostersAvailableText.textContent = `${available}/${MAX_BOOSTERS_IN_INVENTORY}`;
   const discovered = Object.values(state.collection).filter((entry) => (entry.count || 0) > 0).length;
   discoveredCount.textContent = `${discovered}/${EMOJI_LIBRARY.length}`;
   if (headerDiscoveredCount && headerTotalCount) {
