@@ -26553,8 +26553,8 @@
       ['see no evil monkey', 'singe qui ne voit pas le mal'],
       ['globe showing americas', 'globe montrant les Amériques'],
       ['bookmark tabs', 'onglets de marque-pages'],
-      ['woman\'s boot', 'botte de femme'],
-      ['two o\'clock', 'deux heures'],
+      ["woman's boot", 'botte de femme'],
+      ['two oclock', 'deux heures'],
       ['fishing pole', 'canne à pêche'],
       ['pound banknote', 'billet de livre sterling'],
       ['woman walking facing right', 'femme qui marche vers la droite'],
@@ -26566,7 +26566,36 @@
       ['woman farmer', 'femme agricultrice'],
       ['japanese “vacancy” button', 'bouton japonais « libre »'],
       ['kimono', 'kimono'],
-      ['shallow pan of food', 'poêle peu profonde avec nourriture']
+      ['shallow pan of food', 'poêle peu profonde avec nourriture'],
+      ['dodo', 'dodo'],
+      ['anatomical heart', 'cœur anatomique'],
+      ['prince', 'prince'],
+      ['princess', 'princesse'],
+      ['genie', 'génie'],
+      ['kiss', 'baiser'],
+      ['unicorn', 'licorne'],
+      ['hyacinth', 'jacinthe'],
+      ['four leaf clover', 'trèfle à quatre feuilles'],
+      ['birthday cake', 'gâteau d’anniversaire'],
+      ['map of japan', 'carte du Japon'],
+      ['statue of liberty', 'statue de la liberté'],
+      ['volcano', 'volcan'],
+      ['race car', 'voiture de course'],
+      ['flying saucer', 'soucoupe volante'],
+      ['full moon', 'pleine lune'],
+      ['jack-o-lantern', 'citrouille d’Halloween'],
+      ['jack o lantern', 'citrouille d’Halloween'],
+      ['piñata', 'piñata'],
+      ['underwear', 'sous-vêtement'],
+      ['ring', 'anneau'],
+      ['gem stone', 'gemme'],
+      ['dvd', 'DVD'],
+      ['shield', 'bouclier'],
+      ['radioactive', 'radioactif'],
+      ['flag: france', 'drapeau de la France'],
+      ['pile of poo', 'caca'],
+      ['raccoon', 'raton laveur'],
+      ['four-leaf clover', 'trèfle à quatre feuilles']
     ]);
 
     if (phraseMap.has(lower)) {
@@ -26698,7 +26727,96 @@
       result = result.replace(regex, replacement);
     });
     result = result.replace(/\s+/g, ' ').trim();
-    return result;
+
+    const wordMap = new Map([
+      ['face', 'visage'],
+      ['faces', 'visages'],
+      ['smiling', 'souriant'],
+      ['grinning', 'souriant'],
+      ['beaming', 'rayonnant'],
+      ['with', 'avec'],
+      ['and', 'et'],
+      ['of', 'de'],
+      ['the', 'le'],
+      ['a', 'un'],
+      ['an', 'un'],
+      ['to', 'à'],
+      ['for', 'pour'],
+      ['by', 'par'],
+      ['on', 'sur'],
+      ['in', 'dans'],
+      ['heart', 'cœur'],
+      ['hearts', 'cœurs'],
+      ['eye', 'œil'],
+      ['eyes', 'yeux'],
+      ['hand', 'main'],
+      ['hands', 'mains'],
+      ['woman', 'femme'],
+      ['man', 'homme'],
+      ['person', 'personne'],
+      ['boy', 'garçon'],
+      ['girl', 'fille'],
+      ['baby', 'bébé'],
+      ['child', 'enfant'],
+      ['fire', 'feu'],
+      ['water', 'eau'],
+      ['rocket', 'fusée'],
+      ['star', 'étoile'],
+      ['smoke', 'fumée'],
+      ['party', 'fête'],
+      ['cold', 'froid'],
+      ['hot', 'chaud'],
+      ['green', 'vert'],
+      ['blue', 'bleu'],
+      ['red', 'rouge'],
+      ['black', 'noir'],
+      ['white', 'blanc'],
+      ['brown', 'brun'],
+      ['gray', 'gris'],
+      ['grey', 'gris'],
+      ['flag', 'drapeau'],
+      ['japanese', 'japonais'],
+      ['french', 'français'],
+      ['kiss', 'baiser'],
+      ['rabbit', 'lapin'],
+      ['poo', 'caca'],
+      ['ghost', 'fantôme'],
+      ['alien', 'extraterrestre'],
+      ['robot', 'robot'],
+      ['moon', 'lune'],
+      ['full', 'pleine'],
+      ['car', 'voiture'],
+      ['cake', 'gâteau'],
+      ['map', 'carte'],
+      ['statue', 'statue'],
+      ['liberty', 'liberté'],
+      ['volcano', 'volcan'],
+      ['saucer', 'soucoupe'],
+      ['radioactive', 'radioactif'],
+      ['shield', 'bouclier'],
+      ['ring', 'anneau'],
+      ['gem', 'gemme'],
+      ['dvd', 'DVD'],
+      ['unicorn', 'licorne'],
+      ['prince', 'prince'],
+      ['princess', 'princesse'],
+      ['genie', 'génie'],
+      ['dodo', 'dodo'],
+      ['hyacinth', 'jacinthe'],
+      ['clover', 'trèfle'],
+      ['four', 'quatre'],
+      ['leaf', 'feuille']
+    ]);
+
+    const translatedWords = result
+      .split(/\s+/)
+      .map((word) => {
+        const cleaned = word.replace(/[^a-zà-ÿ]+/gi, '').toLowerCase();
+        return wordMap.get(cleaned) || word;
+      })
+      .join(' ');
+
+    return translatedWords.replace(/\s+/g, ' ').trim();
   }
 
   const EMOJI_LIBRARY = RAW_EMOJI_ENTRIES.filter((emoji) => !SKIN_TONE_VARIANT_REGEX.test(emoji.name)).map((emoji, index, arr) => {

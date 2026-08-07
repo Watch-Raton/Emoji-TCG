@@ -44,6 +44,22 @@
       const { getRarityByName, getRarityRank, EMOJI_LIBRARY = [] } = window.EmojiTCGData || {};
       const libraryBySymbol = new Map(EMOJI_LIBRARY.map((emoji) => [emoji.symbol, emoji]));
 
+      function getDisplayName(item) {
+        if (!item) {
+          return '';
+        }
+
+        const rawName = (item.displayName || item.frenchName || item.localizedName || item.name || '').toString().trim();
+        if (rawName) {
+          if (typeof window.EmojiTCGData?.translateEmojiName === 'function') {
+            return window.EmojiTCGData.translateEmojiName(rawName);
+          }
+          return rawName;
+        }
+
+        return item.key || item.symbol || '';
+      }
+
       const normalizeCollectionEntry = (entry) => {
         if (!entry) {
           return entry;
@@ -55,6 +71,7 @@
         return {
           ...entry,
           name: matchingEmoji.name,
+          displayName: matchingEmoji.name,
           rarity: matchingEmoji.rarity?.name || entry.rarity,
           symbol: matchingEmoji.symbol,
           family: matchingEmoji.family || entry.family,
@@ -100,7 +117,7 @@
             card.style.borderColor = `${color}55`;
             card.innerHTML = `
               <div class="emoji">${entry.symbol}</div>
-              <span class="name">${entry.name || entry.key || ''}</span>
+              <span class="name">${getDisplayName(entry)}</span>
               <div class="meta">x${entry.count} · <span style="color:${color}; font-weight:700;">${rarity.name}</span></div>
             `;
 

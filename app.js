@@ -30,6 +30,7 @@ function normalizeCollectionEntry(entry) {
     key: entry.key || makeEmojiKey(matchingEmoji),
     symbol: matchingEmoji.symbol,
     name: matchingEmoji.name,
+    displayName: matchingEmoji.name,
     rarity: matchingEmoji.rarity?.name || entry.rarity,
     group: matchingEmoji.group || entry.group,
     family: matchingEmoji.family || entry.family
@@ -264,9 +265,12 @@ function getDisplayName(emoji) {
     return '';
   }
 
-  const translatedName = (emoji.name || '').toString().trim();
-  if (translatedName) {
-    return translatedName;
+  const rawName = (emoji.displayName || emoji.frenchName || emoji.localizedName || emoji.name || '').toString().trim();
+  if (rawName) {
+    if (typeof window.EmojiTCGData?.translateEmojiName === 'function') {
+      return window.EmojiTCGData.translateEmojiName(rawName);
+    }
+    return rawName;
   }
 
   return (emoji.key || emoji.symbol || '').toString();
@@ -351,7 +355,7 @@ function updateBoosterRevealModal(card, index, total, onNext, onClose) {
 
   title.textContent = `Émoji ${index + 1}/${total}`;
   emojiStage.textContent = card.symbol;
-  nameEl.textContent = card.name;
+  nameEl.textContent = getDisplayName(card);
   rarityEl.textContent = card.rarity;
   rateEl.textContent = `${rarityStyle?.rate ?? 0}%`;
   counter.textContent = `${index + 1}/${total}`;
@@ -585,7 +589,7 @@ async function revealBooster(booster) {
       }
       item.innerHTML = `
         <div class="emoji">${card.symbol}</div>
-        <span class="name">${card.name}</span>
+        <span class="name">${getDisplayName(card)}</span>
         <span class="rarity" style="background:${rarityStyle ? `${rarityStyle.color}22` : '#ffffff22'}; color:${rarityStyle?.color || '#ffffff'};">${card.rarity}</span>
         ${card.wasOwned ? '' : '<span class="new-pill">Nouveau !</span>'}
       `;
