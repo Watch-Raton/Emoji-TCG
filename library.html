@@ -8,14 +8,21 @@
     <style>
       .library-page { max-width: 1280px; margin: 0 auto; padding: 2rem 1rem 3rem; }
       .library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.8rem; }
-      .library-card { padding: 0.85rem; border-radius: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); }
-      .library-card .emoji { font-size: 1.8rem; }
-      .library-card .name { display: block; font-weight: 700; margin-top: 0.35rem; word-break: break-word; }
-      .library-card .rate { display: inline-block; margin-top: 0.4rem; padding: 0.25rem 0.55rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+      .library-card { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.9rem; border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); transition: transform 160ms ease, border-color 160ms ease, background 160ms ease; }
+      .library-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); }
+      .library-card.is-discovered { border-color: rgba(74, 222, 128, 0.38); box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.18); }
+      .library-card .card-top { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+      .library-card .emoji { font-size: 1.9rem; line-height: 1; }
+      .library-card .status-pill { display: inline-flex; align-items: center; justify-content: center; padding: 0.24rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; background: rgba(255,255,255,0.08); color: var(--muted); }
+      .library-card.is-discovered .status-pill { background: rgba(74, 222, 128, 0.16); color: #86efac; }
+      .library-card .name { display: block; font-weight: 700; font-size: 0.95rem; line-height: 1.25; word-break: break-word; min-height: 2.45rem; }
+      .library-card .family-pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 0.25rem 0.55rem; width: fit-content; background: rgba(255,255,255,0.08); color: var(--muted); font-size: 0.74rem; }
+      .library-card .rate { display: inline-flex; align-items: center; width: fit-content; padding: 0.28rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
       .library-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
       .library-toolbar { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1rem; }
       .library-toolbar input { flex: 1; min-width: 220px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: var(--text); padding: 0.8rem 0.95rem; border-radius: 999px; }
       .library-toolbar button { border: 0; padding: 0.8rem 1rem; border-radius: 999px; background: rgba(255,255,255,0.1); color: white; cursor: pointer; }
+      .library-toolbar button.is-active { background: linear-gradient(135deg, rgba(129,140,248,0.85), rgba(236,72,153,0.75)); }
       .library-stats { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.7rem; }
       .stat-pill { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.75rem; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: var(--text); font-size: 0.92rem; }
       .library-family-section { margin-bottom: 1.2rem; }
@@ -34,6 +41,7 @@
           <p class="subtitle">Consulte l’intégralité des emojis disponibles et leur taux d’obtention par rareté.</p>
           <div class="library-stats">
             <span class="stat-pill">Découverts : <strong id="discoveredCount">0</strong>/<strong id="totalCount">0</strong></span>
+            <span class="stat-pill">Résultats : <strong id="resultsCount">0</strong></span>
           </div>
         </div>
         <a href="index.html" class="primary-btn" style="text-decoration:none; display:inline-flex; align-items:center;">Retour au jeu</a>
@@ -41,7 +49,10 @@
 
       <div class="library-toolbar">
         <input id="librarySearch" type="text" placeholder="Rechercher un emoji..." />
-        <button id="sortRateBtn">Trier par taux</button>
+        <button id="filterAllBtn" class="is-active">Tous</button>
+        <button id="filterCollectedBtn">Obtenus</button>
+        <button id="filterMissingBtn">À obtenir</button>
+        <button id="sortRateBtn">Trier par taux ↓</button>
       </div>
 
       <div id="libraryGrid" class="library-grid"></div>
@@ -52,12 +63,17 @@
       const libraryGrid = document.getElementById('libraryGrid');
       const searchInput = document.getElementById('librarySearch');
       const sortRateBtn = document.getElementById('sortRateBtn');
+      const filterAllBtn = document.getElementById('filterAllBtn');
+      const filterCollectedBtn = document.getElementById('filterCollectedBtn');
+      const filterMissingBtn = document.getElementById('filterMissingBtn');
       const discoveredCountEl = document.getElementById('discoveredCount');
       const totalCountEl = document.getElementById('totalCount');
+      const resultsCountEl = document.getElementById('resultsCount');
       const library = Array.isArray(window.EmojiTCGData?.EMOJI_LIBRARY) ? window.EmojiTCGData.EMOJI_LIBRARY : [];
       const { getRarityByName, getRarityRank: sharedGetRarityRank, translateEmojiName } = window.EmojiTCGData || {};
       const storageKey = 'emoji-tcg-save-v1';
       let sortAscending = false;
+      let activeFilter = 'all';
 
       function getDisplayName(item) {
         if (!item) {
@@ -88,6 +104,30 @@
           Commun: 4
         };
         return ranks[rarityName] ?? 5;
+      }
+
+      function getCollectionState() {
+        const saved = localStorage.getItem(storageKey);
+        const parsed = saved ? JSON.parse(saved) : { collection: {} };
+        return parsed.collection || {};
+      }
+
+      function isCollectedItem(item, collection) {
+        const normalizedName = (item.name || '').toLowerCase();
+        const normalizedSymbol = (item.symbol || '').toLowerCase();
+        const candidates = [
+          `${normalizedName}:${normalizedSymbol}`,
+          `${(item.key || '').toLowerCase()}`,
+          normalizedSymbol,
+          normalizedName
+        ];
+
+        return Object.values(collection).some((entry) => {
+          const entryName = (entry.name || '').toLowerCase();
+          const entrySymbol = (entry.symbol || '').toLowerCase();
+          const entryKey = (entry.key || '').toLowerCase();
+          return candidates.some((candidate) => candidate && [entryName, entrySymbol, entryKey].includes(candidate));
+        });
       }
 
       const FAMILY_NAME_MAP = {
@@ -153,16 +193,27 @@
         return familyByName[name] || 'Autres';
       }
 
+      function updateFilterButtons() {
+        [filterAllBtn, filterCollectedBtn, filterMissingBtn].forEach((button) => button.classList.remove('is-active'));
+        if (activeFilter === 'collected') {
+          filterCollectedBtn.classList.add('is-active');
+        } else if (activeFilter === 'missing') {
+          filterMissingBtn.classList.add('is-active');
+        } else {
+          filterAllBtn.classList.add('is-active');
+        }
+      }
+
       function renderLibrary(filter = '') {
         if (!Array.isArray(library) || library.length === 0) {
           libraryGrid.innerHTML = '<div class="empty-state">La bibliothèque est indisponible pour le moment.</div>';
+          resultsCountEl.textContent = '0';
           return;
         }
 
         const term = filter.toLowerCase();
-        const saved = localStorage.getItem(storageKey);
-        const state = saved ? JSON.parse(saved) : { collection: {} };
-        const collectionEntries = Object.values(state.collection || {});
+        const collection = getCollectionState();
+        const collectionEntries = Object.values(collection || {});
         const discoveredByFamily = new Map();
 
         collectionEntries.forEach((entry) => {
@@ -173,7 +224,18 @@
         const filtered = library.filter((item) => {
           const displayName = getDisplayName(item);
           const text = `${item.symbol} ${displayName} ${item.family || ''} ${item.rarity?.name || ''}`.toLowerCase();
-          return text.includes(term);
+          if (!text.includes(term)) {
+            return false;
+          }
+
+          const discovered = isCollectedItem(item, collection);
+          if (activeFilter === 'collected') {
+            return discovered;
+          }
+          if (activeFilter === 'missing') {
+            return !discovered;
+          }
+          return true;
         });
 
         const grouped = filtered.reduce((acc, item) => {
@@ -185,7 +247,7 @@
           return acc;
         }, new Map());
 
-        const familyOrder = ['Animaux', 'Nature', 'Nourriture', 'Émotions', 'Métier', 'Loisirs', 'Objets', 'Voyage', 'Autres'];
+        const familyOrder = ['Émotions', 'Personnes & corps', 'Animaux et nature', 'Nourriture et boisson', 'Voyage et lieux', 'Activités', 'Objets', 'Symboles', 'Drapeaux', 'Autres'];
         const families = [...grouped.entries()].sort((a, b) => {
           const indexA = familyOrder.indexOf(a[0]);
           const indexB = familyOrder.indexOf(b[0]);
@@ -197,6 +259,8 @@
         });
 
         libraryGrid.innerHTML = '';
+        resultsCountEl.textContent = filtered.length;
+
         families.forEach(([family, items]) => {
           const sorted = [...items].sort((a, b) => {
             const rankDiff = getRarityRankValue(a.rarity.name) - getRarityRankValue(b.rarity.name);
@@ -223,11 +287,16 @@
           familyGrid.className = 'library-grid';
           sorted.forEach((item) => {
             const card = document.createElement('article');
-            card.className = 'library-card';
+            const discovered = isCollectedItem(item, collection);
+            card.className = `library-card${discovered ? ' is-discovered' : ''}`;
             const rarity = getRarityByName ? getRarityByName(item.rarity.name) : item.rarity;
             card.innerHTML = `
-              <div class="emoji">${item.symbol}</div>
+              <div class="card-top">
+                <div class="emoji">${item.symbol}</div>
+                <span class="status-pill">${discovered ? 'Obtenu' : 'À obtenir'}</span>
+              </div>
               <span class="name">${getDisplayName(item)}</span>
+              <span class="family-pill">${getFamilyForItem(item)}</span>
               <span class="rate" style="background:${rarity.color}22; color:${rarity.color};">${rarity.name} · ${item.rate}%</span>
             `;
             familyGrid.appendChild(card);
@@ -238,9 +307,8 @@
       }
 
       function updateDiscoveryCount() {
-        const saved = localStorage.getItem(storageKey);
-        const state = saved ? JSON.parse(saved) : { collection: {} };
-        const discovered = Object.keys(state.collection || {}).filter((key) => (state.collection[key]?.count || 0) > 0).length;
+        const collection = getCollectionState();
+        const discovered = Object.values(collection).filter((entry) => (entry.count || 0) > 0).length;
         discoveredCountEl.textContent = discovered;
         totalCountEl.textContent = library.length;
       }
@@ -251,7 +319,23 @@
         sortRateBtn.textContent = sortAscending ? 'Trier par taux ↑' : 'Trier par taux ↓';
         renderLibrary(searchInput.value);
       });
+      filterAllBtn.addEventListener('click', () => {
+        activeFilter = 'all';
+        updateFilterButtons();
+        renderLibrary(searchInput.value);
+      });
+      filterCollectedBtn.addEventListener('click', () => {
+        activeFilter = 'collected';
+        updateFilterButtons();
+        renderLibrary(searchInput.value);
+      });
+      filterMissingBtn.addEventListener('click', () => {
+        activeFilter = 'missing';
+        updateFilterButtons();
+        renderLibrary(searchInput.value);
+      });
 
+      updateFilterButtons();
       updateDiscoveryCount();
       renderLibrary('');
     </script>

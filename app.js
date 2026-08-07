@@ -244,6 +244,21 @@ function getRarityStyle(name) {
   return getRarityByName(name) || RARITY_CONFIG.find((item) => item.name === 'Commun') || RARITY_CONFIG[0];
 }
 
+function getRarityRankValue(rarityName) {
+  const normalized = (rarityName || '').toString().trim();
+  const rankMap = {
+    'Légendaire Ultime': 0,
+    Mythique: 1,
+    'Ultra rare': 2,
+    Légendaire: 3,
+    Épique: 4,
+    Rare: 5,
+    'Peu commun': 6,
+    Commun: 7
+  };
+  return rankMap[normalized] ?? 999;
+}
+
 function getDisplayName(emoji) {
   if (!emoji) {
     return '';
@@ -493,17 +508,26 @@ function render() {
     collectionList.innerHTML = '<div class="empty-state">Ta collection est vide. Ouvre un booster pour commencer.</div>';
   }
 
-  const sampleEntries = EMOJI_LIBRARY.slice(0, 15).map((emoji) => {
-    const entry = state.collection[makeEmojiKey(emoji)] || { count: 0 };
-    return {
-      ...emoji,
-      count: entry.count || 0
-    };
-  });
+  const rankedEntries = [...EMOJI_LIBRARY]
+    .map((emoji) => {
+      const entry = state.collection[makeEmojiKey(emoji)] || { count: 0 };
+      return {
+        ...emoji,
+        count: entry.count || 0
+      };
+    })
+    .sort((a, b) => {
+      const rankDiff = getRarityRankValue(a.rarity?.name) - getRarityRankValue(b.rarity?.name);
+      if (rankDiff !== 0) {
+        return rankDiff;
+      }
+      return (a.count || 0) - (b.count || 0);
+    })
+    .slice(0, 15);
 
-  if (sampleEntries.length) {
+  if (rankedEntries.length) {
     libraryList.innerHTML = '';
-    sampleEntries.forEach((emoji) => {
+    rankedEntries.forEach((emoji) => {
       const item = document.createElement('article');
       const rarityStyle = emoji.rarity || RARITY_CONFIG[0];
       item.className = 'collection-item';

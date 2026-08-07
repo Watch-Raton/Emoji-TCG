@@ -5,7 +5,9 @@
     { id: 'rare', name: 'Rare', rate: 7, weight: 7, color: '#a78bfa' },
     { id: 'epic', name: 'Épique', rate: 2.5, weight: 2.5, color: '#f59e0b' },
     { id: 'legendary', name: 'Légendaire', rate: 0.5, weight: 0.5, color: '#fb7185' },
-    { id: 'ultra-rare', name: 'Ultra rare', rate: 0.01, weight: 0.01, color: '#f43f5e' }
+    { id: 'ultra-rare', name: 'Ultra rare', rate: 0.01, weight: 0.01, color: '#f43f5e' },
+    { id: 'mythic', name: 'Mythique', rate: 0.1, weight: 0.1, color: '#8b5cf6' },
+    { id: 'special', name: 'Légendaire Ultime', rate: 0.001, weight: 0.001, color: '#fbbf24' }
   ];
 
   function getRarityByName(name) {
@@ -15,12 +17,14 @@
 
   function getRarityRank(name) {
     const ranks = {
-      'Ultra rare': 0,
-      Légendaire: 1,
-      Épique: 2,
-      Rare: 3,
-      'Peu commun': 4,
-      Commun: 5
+      'Légendaire Ultime': 0,
+      Mythique: 1,
+      'Ultra rare': 2,
+      Légendaire: 3,
+      Épique: 4,
+      Rare: 5,
+      'Peu commun': 6,
+      Commun: 7
     };
     return ranks[name] ?? 6;
   }
@@ -26699,8 +26703,42 @@
 
   const EMOJI_LIBRARY = RAW_EMOJI_ENTRIES.filter((emoji) => !SKIN_TONE_VARIANT_REGEX.test(emoji.name)).map((emoji, index, arr) => {
     const rarityName = (() => {
+      const mythicNames = new Set([
+        'dodo',
+        'pile of poo',
+        'anatomical heart',
+        'prince',
+        'princess',
+        'genie',
+        'kiss',
+        'unicorn',
+        'hyacinth',
+        'four leaf clover',
+        'birthday cake',
+        'map of Japan',
+        'statue of liberty',
+        'volcano',
+        'race car',
+        'flying saucer',
+        'full moon',
+        'jack-o-lantern',
+        'piñata',
+        'underwear',
+        'ring',
+        'gem stone',
+        'dvd',
+        'shield',
+        'rabbit',
+        'radioactive',
+        'flag: France'
+      ]);
+
       if (emoji.symbol === '🦝' || emoji.name === 'raccoon') {
-        return 'Ultra rare';
+        return 'Légendaire Ultime';
+      }
+
+      if (mythicNames.has(emoji.name)) {
+        return 'Mythique';
       }
 
       const ratio = index / Math.max(1, arr.length);
