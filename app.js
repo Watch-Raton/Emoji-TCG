@@ -44,6 +44,10 @@ function normalizeCollectionState(collection = {}) {
 let state = loadState();
 let displayedBoosterSignature = null;
 let boosterRevealModal = null;
+let confettiLayer = null;
+let audioContext = null;
+let confettiSoundPlayed = false;
+let audioReady = false;
 
 if (!window.EmojiTCGData) {
   console.warn('emoji-data.js is not loaded');
@@ -69,6 +73,10 @@ openBoosterBtn.addEventListener('click', async () => {
     showToast('Tu n’as pas encore de booster disponible.');
     return;
   }
+
+  confettiSoundPlayed = false;
+  await ensureAudioReady();
+  playBoosterOpenSound();
 
   const booster = createBooster().map((card) => ({
     ...card,
@@ -276,6 +284,117 @@ function getDisplayName(emoji) {
   return (emoji.key || emoji.symbol || '').toString();
 }
 
+async function ensureAudioReady() {
+  if (audioReady) {
+    return;
+  }
+
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) {
+    return;
+  }
+
+  if (!audioContext) {
+    audioContext = new AudioContextClass();
+  }
+
+  if (audioContext.state === 'suspended') {
+    await audioContext.resume();
+  }
+
+  audioReady = true;
+}
+
+function playBoosterOpenSound() {
+  if (!audioContext) {
+    return;
+  }
+
+  const now = audioContext.currentTime;
+  const gain = audioContext.createGain();
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.035, now + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+  gain.connect(audioContext.destination);
+
+  const osc1 = audioContext.createOscillator();
+  osc1.type = 'triangle';
+  osc1.frequency.setValueAtTime(880, now);
+  osc1.frequency.exponentialRampToValueAtTime(620, now + 0.18);
+  osc1.connect(gain);
+
+  const osc2 = audioContext.createOscillator();
+  osc2.type = 'sine';
+  osc2.frequency.setValueAtTime(1320, now);
+  osc2.frequency.exponentialRampToValueAtTime(780, now + 0.18);
+  osc2.connect(gain);
+
+  osc1.start(now);
+  osc2.start(now);
+  osc1.stop(now + 0.28);
+  osc2.stop(now + 0.28);
+}
+
+function playConfettiSound() {
+  if (confettiSoundPlayed || !audioContext) {
+    return;
+  }
+
+  const now = audioContext.currentTime;
+  const gain = audioContext.createGain();
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.025, now + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+  gain.connect(audioContext.destination);
+
+  const osc = audioContext.createOscillator();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(1568, now);
+  osc.frequency.exponentialRampToValueAtTime(1980, now + 0.08);
+  osc.frequency.exponentialRampToValueAtTime(1180, now + 0.24);
+  osc.connect(gain);
+
+  osc.start(now);
+  osc.stop(now + 0.26);
+  confettiSoundPlayed = true;
+}
+
+function ensureConfettiLayer() {
+  if (confettiLayer) {
+    return confettiLayer;
+  }
+
+  confettiLayer = document.createElement('div');
+  confettiLayer.className = 'confetti-layer';
+  confettiLayer.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(confettiLayer);
+  return confettiLayer;
+}
+
+function launchConfetti(color) {
+  const layer = ensureConfettiLayer();
+  const pieces = 28;
+  const colors = [color, '#f59e0b', '#f43f5e', '#8b5cf6', '#34d399', '#facc15'];
+
+  for (let index = 0; index < pieces; index += 1) {
+    const piece = document.createElement('span');
+    piece.className = 'confetti-piece';
+    const size = 6 + Math.random() * 10;
+    const hueColor = colors[index % colors.length];
+    piece.style.width = `${size}px`;
+    piece.style.height = `${size * 0.65}px`;
+    piece.style.left = `${Math.random() * 100}%`;
+    piece.style.top = `-${size}px`;
+    piece.style.background = hueColor;
+    piece.style.setProperty('--confetti-drift', `${(Math.random() - 0.5) * 220}px`);
+    piece.style.setProperty('--confetti-duration', `${1.8 + Math.random() * 1.2}s`);
+    piece.style.setProperty('--confetti-delay', `${Math.random() * 0.15}s`);
+    layer.appendChild(piece);
+
+    setTimeout(() => piece.remove(), 3400);
+  }
+}
+
 function ensureBoosterRevealModal() {
   if (boosterRevealModal) {
     return boosterRevealModal;
@@ -367,6 +486,12 @@ function updateBoosterRevealModal(card, index, total, onNext, onClose) {
   panel.style.setProperty('--reveal-color', rarityStyle.color);
   panel.style.borderColor = `${rarityStyle.color}55`;
   panel.style.boxShadow = `0 0 0 1px ${rarityStyle.color}22, 0 30px 70px rgba(0, 0, 0, 0.38), 0 0 24px ${rarityStyle.color}44`;
+
+  const shouldCelebrate = getRarityRankValue(card.rarity) <= getRarityRankValue('Épique');
+  if (shouldCelebrate) {
+    launchConfetti(rarityStyle.color);
+    playConfettiSound();
+  }
 
   if (card.wasOwned) {
     newPill.style.display = 'none';
