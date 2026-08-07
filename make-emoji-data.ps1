@@ -53,7 +53,7 @@ function Translate-EmojiName([string]$name) {
         'Japanese “free of charge” button' = 'bouton japonais « gratuit »'
         'Japanese “not free of charge” button' = 'bouton japonais « payant »'
         'FREE button' = 'bouton GRATUIT'
-        'flag:' = 'drapeau :'
+        'flag:' = 'Drapeau :'
     }
 
     $lower = $normalized.ToLowerInvariant()
@@ -88,8 +88,8 @@ function Translate-EmojiName([string]$name) {
         '\bhearts\b' = 'cœurs'
         '\beyes\b' = 'yeux'
         '\beye\b' = 'œil'
-        '\bface\b' = 'visage'
-        '\bfaces\b' = 'visages'
+        '\bface\b' = 'Visage'
+        '\bfaces\b' = 'Visages'
         '\bhand\b' = 'main'
         '\bhands\b' = 'mains'
         '\bhead\b' = 'tête'

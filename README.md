@@ -6,7 +6,7 @@ Joue au jeu ici : https://emoji-tcg.onrender.com/index.html
 ## Comment ça marche
 
 - Ouvre des boosters de 10 émojis.
-- Tu peux ouvrir jusqu’à 3 boosters par heure.
+- Tu reçois 1 booster toutes les 10 minutes, jusqu’à 3 boosters à la fois.
 - Chaque émoji a une rareté : `Commun`, `Peu commun`, `Rare`, `Épique`, `Légendaire`.
 - Les émojis sont tirés aléatoirement depuis une bibliothèque et ajoutés à ta collection.
 

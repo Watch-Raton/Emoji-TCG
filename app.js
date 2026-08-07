@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'emoji-tcg-save-v1';
-const BOOSTER_COOLDOWN_MS = 60 * 60 * 1000;
-const BOOSTERS_PER_HOUR = 3;
+const BOOSTER_COOLDOWN_MS = 10 * 60 * 1000;
+const MAX_BOOSTERS_IN_INVENTORY = 3;
 const BONUS_BOOSTER_ENABLED = false;
 
 const { EMOJI_LIBRARY, RARITY_CONFIG: SHARED_RARITY_CONFIG, getRarityByName } = window.EmojiTCGData || { EMOJI_LIBRARY: [], RARITY_CONFIG: [] };
@@ -65,7 +65,7 @@ openBoosterBtn.addEventListener('click', async () => {
   const canOpen = getAvailableBoosters(now) > 0;
 
   if (!canOpen) {
-    showToast('Tu as déjà utilisé tous tes boosters pour cette heure.');
+    showToast('Tu n’as pas encore de booster disponible.');
     return;
   }
 
@@ -78,8 +78,6 @@ openBoosterBtn.addEventListener('click', async () => {
   state.lastBooster = booster;
   if ((state.exchangeBoosterCredits || 0) > 0) {
     state.exchangeBoosterCredits -= 1;
-  } else {
-    state.boosterUsesThisHour = (state.boosterUsesThisHour || 0) + 1;
   }
   state.lastBoosterType = 'normal';
   state.lastBoosterSignature = getBoosterSignature(booster);
@@ -99,6 +97,15 @@ openBoosterBtn.addEventListener('click', async () => {
     entry.group = card.group;
     entry.family = card.family;
     state.collection[card.key] = entry;
+  }
+
+  state.boostersAvailable = Math.max(
+    0,
+    Math.min(MAX_BOOSTERS_IN_INVENTORY, (state.boostersAvailable || 0) - 1)
+  );
+
+  if (state.boostersAvailable < MAX_BOOSTERS_IN_INVENTORY && !state.nextBoosterAt) {
+    state.nextBoosterAt = now + BOOSTER_COOLDOWN_MS;
   }
 
   saveState();
@@ -153,6 +160,8 @@ function createEmptyState() {
     boostersOpened: 0,
     lastOpenedAt: null,
     lastBooster: [],
+    boostersAvailable: MAX_BOOSTERS_IN_INVENTORY,
+    nextBoosterAt: null,
     boosterUsesThisHour: 0,
     exchangeBoosterCredits: 0,
     lastResetHour: null,
@@ -175,7 +184,14 @@ function loadState() {
     const normalizedState = {
       ...parsed,
       collection: normalizeCollectionState(parsed.collection),
-      lastBooster: Array.isArray(parsed.lastBooster) ? parsed.lastBooster.map(normalizeCollectionEntry) : []
+      lastBooster: Array.isArray(parsed.lastBooster) ? parsed.lastBooster.map(normalizeCollectionEntry) : [],
+      boostersAvailable: Math.max(
+        0,
+        Math.min(MAX_BOOSTERS_IN_INVENTORY, Number(parsed.boostersAvailable ?? parsed.availableBoosters ?? MAX_BOOSTERS_IN_INVENTORY))
+      ),
+      nextBoosterAt: parsed.nextBoosterAt ? Number(parsed.nextBoosterAt) : null,
+      exchangeBoosterCredits: Number(parsed.exchangeBoosterCredits || 0),
+      boosterUsesThisHour: 0
     };
 
     return normalizedState;
@@ -197,13 +213,31 @@ function getBoosterSignature(booster) {
 }
 
 function getAvailableBoosters(now) {
-  const hourKey = Math.floor(now / BOOSTER_COOLDOWN_MS);
-  if (state.lastResetHour !== hourKey) {
-    state.lastResetHour = hourKey;
-    state.boosterUsesThisHour = 0;
+  const available = Math.min(
+    MAX_BOOSTERS_IN_INVENTORY,
+    Math.max(0, (state.boostersAvailable || 0))
+  );
+
+  if (available < MAX_BOOSTERS_IN_INVENTORY && !state.nextBoosterAt) {
+    state.nextBoosterAt = now + BOOSTER_COOLDOWN_MS;
   }
 
-  return BOOSTERS_PER_HOUR - (state.boosterUsesThisHour || 0) + Math.max(0, state.exchangeBoosterCredits || 0);
+  while (
+    (state.boostersAvailable || 0) < MAX_BOOSTERS_IN_INVENTORY &&
+    (state.nextBoosterAt || 0) <= now
+  ) {
+    state.boostersAvailable = Math.min(
+      MAX_BOOSTERS_IN_INVENTORY,
+      (state.boostersAvailable || 0) + 1
+    );
+    state.nextBoosterAt += BOOSTER_COOLDOWN_MS;
+  }
+
+  if ((state.boostersAvailable || 0) >= MAX_BOOSTERS_IN_INVENTORY) {
+    state.nextBoosterAt = null;
+  }
+
+  return Math.min(MAX_BOOSTERS_IN_INVENTORY, Math.max(0, (state.boostersAvailable || 0)));
 }
 
 function getRarityStyle(name) {
@@ -396,11 +430,18 @@ function render() {
   openBoosterBtn.disabled = !canOpen;
   openBoosterBtn.textContent = canOpen ? `Ouvrir un booster (${available} dispo)` : 'Plus de boosters';
 
-  const remaining = Math.max(0, BOOSTER_COOLDOWN_MS - (now % BOOSTER_COOLDOWN_MS));
+  const remaining = Math.max(0, (state.nextBoosterAt || now + BOOSTER_COOLDOWN_MS) - now);
   const hours = String(Math.floor(remaining / 3600000)).padStart(2, '0');
   const minutes = String(Math.floor((remaining % 3600000) / 60000)).padStart(2, '0');
   const seconds = String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0');
-  cooldownText.textContent = `${hours}:${minutes}:${seconds}`;
+
+  if (available >= MAX_BOOSTERS_IN_INVENTORY) {
+    cooldownText.textContent = 'Disponible maintenant';
+  } else if (remaining > 0) {
+    cooldownText.textContent = `Prochain booster ${hours}:${minutes}:${seconds}`;
+  } else {
+    cooldownText.textContent = 'Disponible maintenant';
+  }
 
   boostersAvailableText.textContent = String(available);
   const discovered = Object.values(state.collection).filter((entry) => (entry.count || 0) > 0).length;
