@@ -54,6 +54,8 @@ if (!window.EmojiTCGData) {
 }
 
 const openBoosterBtn = document.getElementById('openBoosterBtn');
+const twitchFollowBtn = document.getElementById('twitchFollowBtn');
+const instagramFollowBtn = document.getElementById('instagramFollowBtn');
 const cooldownText = document.getElementById('cooldownText');
 const boostersAvailableText = document.getElementById('boostersAvailableText');
 const discoveredCount = document.getElementById('discoveredCount');
@@ -64,6 +66,61 @@ const boosterResults = document.getElementById('boosterResults');
 const collectionList = document.getElementById('collectionList');
 const libraryList = document.getElementById('libraryList');
 const lastResultBadge = document.getElementById('lastResultBadge');
+
+function updateBonusButtons() {
+  const bonusCount = (state.followBonusBoosters || 0);
+  if (twitchFollowBtn) {
+    twitchFollowBtn.classList.toggle('is-active', bonusCount >= 1);
+    twitchFollowBtn.setAttribute('aria-label', bonusCount >= 1 ? 'Bonus Twitch actif' : 'Activer le bonus Twitch');
+  }
+  if (instagramFollowBtn) {
+    instagramFollowBtn.classList.toggle('is-active', bonusCount >= 2);
+    instagramFollowBtn.setAttribute('aria-label', bonusCount >= 2 ? 'Bonus Instagram actif' : 'Activer le bonus Instagram');
+  }
+}
+
+function getEffectiveBoosterLimit() {
+  return MAX_BOOSTERS_IN_INVENTORY + (state.followBonusBoosters || 0);
+}
+
+function applyFollowBonus(type) {
+  if (type === 'twitch') {
+    if ((state.followBonusBoosters || 0) >= 1) {
+      return false;
+    }
+    state.followBonusBoosters = 1;
+  } else if (type === 'instagram') {
+    if ((state.followBonusBoosters || 0) >= 2) {
+      return false;
+    }
+    state.followBonusBoosters = Math.max((state.followBonusBoosters || 0), 2);
+  }
+
+  state.boostersAvailable = Math.min(getEffectiveBoosterLimit(), Math.max(state.boostersAvailable || 0, 1));
+  if ((state.boostersAvailable || 0) < getEffectiveBoosterLimit() && !state.nextBoosterAt) {
+    state.nextBoosterAt = Date.now() + BOOSTER_COOLDOWN_MS;
+  }
+  saveState();
+  updateBonusButtons();
+  render();
+  return true;
+}
+
+if (twitchFollowBtn) {
+  twitchFollowBtn.addEventListener('click', (event) => {
+    event.preventDefault();
+    applyFollowBonus('twitch');
+    window.open(twitchFollowBtn.href, '_blank', 'noopener,noreferrer');
+  });
+}
+
+if (instagramFollowBtn) {
+  instagramFollowBtn.addEventListener('click', (event) => {
+    event.preventDefault();
+    applyFollowBonus('instagram');
+    window.open(instagramFollowBtn.href, '_blank', 'noopener,noreferrer');
+  });
+}
 
 openBoosterBtn.addEventListener('click', async () => {
   const now = Date.now();
@@ -110,10 +167,10 @@ openBoosterBtn.addEventListener('click', async () => {
 
   state.boostersAvailable = Math.max(
     0,
-    Math.min(MAX_BOOSTERS_IN_INVENTORY, (state.boostersAvailable || 0) - 1)
+    Math.min(getEffectiveBoosterLimit(), (state.boostersAvailable || 0) - 1)
   );
 
-  if (state.boostersAvailable < MAX_BOOSTERS_IN_INVENTORY && !state.nextBoosterAt) {
+  if (state.boostersAvailable < getEffectiveBoosterLimit() && !state.nextBoosterAt) {
     state.nextBoosterAt = now + BOOSTER_COOLDOWN_MS;
   }
 
@@ -173,6 +230,7 @@ function createEmptyState() {
     nextBoosterAt: null,
     boosterUsesThisHour: 0,
     exchangeBoosterCredits: 0,
+    followBonusBoosters: 0,
     lastResetHour: null,
     lastBoosterSignature: null
   };
@@ -196,10 +254,14 @@ function loadState() {
       lastBooster: Array.isArray(parsed.lastBooster) ? parsed.lastBooster.map(normalizeCollectionEntry) : [],
       boostersAvailable: Math.max(
         0,
-        Math.min(MAX_BOOSTERS_IN_INVENTORY, Number(parsed.boostersAvailable ?? parsed.availableBoosters ?? MAX_BOOSTERS_IN_INVENTORY))
+        Math.min(
+          MAX_BOOSTERS_IN_INVENTORY + Number(parsed.followBonusBoosters || 0),
+          Number(parsed.boostersAvailable ?? parsed.availableBoosters ?? MAX_BOOSTERS_IN_INVENTORY)
+        )
       ),
       nextBoosterAt: parsed.nextBoosterAt ? Number(parsed.nextBoosterAt) : null,
       exchangeBoosterCredits: Number(parsed.exchangeBoosterCredits || 0),
+      followBonusBoosters: Number(parsed.followBonusBoosters || 0),
       boosterUsesThisHour: 0
     };
 
@@ -222,31 +284,32 @@ function getBoosterSignature(booster) {
 }
 
 function getAvailableBoosters(now) {
+  const effectiveLimit = getEffectiveBoosterLimit();
   const available = Math.min(
-    MAX_BOOSTERS_IN_INVENTORY,
+    effectiveLimit,
     Math.max(0, (state.boostersAvailable || 0))
   );
 
-  if (available < MAX_BOOSTERS_IN_INVENTORY && !state.nextBoosterAt) {
+  if (available < effectiveLimit && !state.nextBoosterAt) {
     state.nextBoosterAt = now + BOOSTER_COOLDOWN_MS;
   }
 
   while (
-    (state.boostersAvailable || 0) < MAX_BOOSTERS_IN_INVENTORY &&
+    (state.boostersAvailable || 0) < effectiveLimit &&
     (state.nextBoosterAt || 0) <= now
   ) {
     state.boostersAvailable = Math.min(
-      MAX_BOOSTERS_IN_INVENTORY,
+      effectiveLimit,
       (state.boostersAvailable || 0) + 1
     );
     state.nextBoosterAt += BOOSTER_COOLDOWN_MS;
   }
 
-  if ((state.boostersAvailable || 0) >= MAX_BOOSTERS_IN_INVENTORY) {
+  if ((state.boostersAvailable || 0) >= effectiveLimit) {
     state.nextBoosterAt = null;
   }
 
-  return Math.min(MAX_BOOSTERS_IN_INVENTORY, Math.max(0, (state.boostersAvailable || 0)));
+  return Math.min(effectiveLimit, Math.max(0, (state.boostersAvailable || 0)));
 }
 
 function getRarityStyle(name) {
@@ -570,6 +633,7 @@ function render() {
   const now = Date.now();
   const available = Math.max(0, getAvailableBoosters(now));
   const canOpen = available > 0;
+  updateBonusButtons();
 
   openBoosterBtn.disabled = !canOpen;
   openBoosterBtn.textContent = canOpen ? `Ouvrir un booster (${available} dispo)` : 'Plus de boosters';
@@ -579,7 +643,8 @@ function render() {
   const minutes = String(Math.floor((remaining % 3600000) / 60000)).padStart(2, '0');
   const seconds = String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0');
 
-  if (available >= MAX_BOOSTERS_IN_INVENTORY) {
+  const effectiveLimit = getEffectiveBoosterLimit();
+  if (available >= effectiveLimit) {
     cooldownText.textContent = 'Disponible maintenant';
   } else if (remaining > 0) {
     cooldownText.textContent = `Prochain booster ${hours}:${minutes}:${seconds}`;
@@ -587,7 +652,7 @@ function render() {
     cooldownText.textContent = 'Disponible maintenant';
   }
 
-  boostersAvailableText.textContent = `${available}/${MAX_BOOSTERS_IN_INVENTORY}`;
+  boostersAvailableText.textContent = `${available}/${getEffectiveBoosterLimit()}`;
   const discovered = Object.values(state.collection).filter((entry) => (entry.count || 0) > 0).length;
   discoveredCount.textContent = `${discovered}/${EMOJI_LIBRARY.length}`;
   if (headerDiscoveredCount && headerTotalCount) {
