@@ -246,10 +246,7 @@ openBoosterBtn.addEventListener('click', async () => {
     state.collection[card.key] = entry;
   }
 
-  state.boostersAvailable = Math.max(
-    0,
-    Math.min(getEffectiveBoosterLimit(), (state.boostersAvailable || 0) - 1)
-  );
+  state.boostersAvailable = Math.max(0, (state.boostersAvailable || 0) - 1);
 
   if (state.boostersAvailable < getEffectiveBoosterLimit() && !state.nextBoosterAt) {
     state.nextBoosterAt = now + BOOSTER_COOLDOWN_MS;
@@ -395,20 +392,26 @@ function buyShopItem(itemId) {
   ensureShopPromotion(now);
 
   const price = getPromotionPrice(item, now);
-  if (!item || (state.coins || 0) < price) {
+  
+  if (!item) {
     return;
   }
-
-  state.coins = (state.coins || 0) - price;
+  
+  if ((state.coins || 0) < price) {
+    showToast('Pas assez de pièces.');
+    return;
+  }
 
   if ((item.hourlyLimit || Infinity) < Infinity && getShopItemPurchaseCount(item, now) >= item.hourlyLimit) {
     showToast('Cet article est épuisé pour cette heure.');
     return;
   }
 
+  state.coins = (state.coins || 0) - price;
+
   if (item.effectType === 'temporary-capacity') {
     state.tempBoosterCapacityUntil = now + item.effectDurationMs;
-    state.boostersAvailable = Math.min(getEffectiveBoosterLimit(), (state.boostersAvailable || 0) + (item.rewardBoosters || 0));
+    state.boostersAvailable = (state.boostersAvailable || 0) + (item.rewardBoosters || 0);
     if (state.boostersAvailable < getEffectiveBoosterLimit() && !state.nextBoosterAt) {
       state.nextBoosterAt = now + BOOSTER_COOLDOWN_MS;
     }
@@ -420,7 +423,7 @@ function buyShopItem(itemId) {
       state.shopExhaustionAtByItem = state.shopExhaustionAtByItem || {};
       state.shopExhaustionAtByItem[item.id] = now;
     }
-    state.boostersAvailable = Math.min(getEffectiveBoosterLimit(), (state.boostersAvailable || 0) + (item.rewardBoosters || 0));
+    state.boostersAvailable = (state.boostersAvailable || 0) + (item.rewardBoosters || 0);
     if (state.boostersAvailable < getEffectiveBoosterLimit() && !state.nextBoosterAt) {
       state.nextBoosterAt = now + BOOSTER_COOLDOWN_MS;
     }
@@ -678,12 +681,8 @@ function getBoosterSignature(booster) {
 
 function getAvailableBoosters(now) {
   const effectiveLimit = getEffectiveBoosterLimit();
-  const available = Math.min(
-    effectiveLimit,
-    Math.max(0, (state.boostersAvailable || 0))
-  );
 
-  if (available < effectiveLimit && !state.nextBoosterAt) {
+  if ((state.boostersAvailable || 0) < effectiveLimit && !state.nextBoosterAt) {
     state.nextBoosterAt = now + BOOSTER_COOLDOWN_MS;
   }
 
@@ -691,18 +690,15 @@ function getAvailableBoosters(now) {
     (state.boostersAvailable || 0) < effectiveLimit &&
     (state.nextBoosterAt || 0) <= now
   ) {
-    state.boostersAvailable = Math.min(
-      effectiveLimit,
-      (state.boostersAvailable || 0) + 1
-    );
+    state.boostersAvailable = (state.boostersAvailable || 0) + 1;
     state.nextBoosterAt += BOOSTER_COOLDOWN_MS;
   }
 
-  if ((state.boostersAvailable || 0) >= effectiveLimit) {
+  if ((state.boostersAvailable || 0) > effectiveLimit) {
     state.nextBoosterAt = null;
   }
 
-  return Math.min(effectiveLimit, Math.max(0, (state.boostersAvailable || 0)));
+  return Math.max(0, (state.boostersAvailable || 0));
 }
 
 function getRarityStyle(name) {
