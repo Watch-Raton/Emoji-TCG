@@ -763,6 +763,14 @@ function render() {
   boostersAvailableText.textContent = `${available}/${getEffectiveBoosterLimit()}`;
   const discovered = Object.values(state.collection).filter((entry) => (entry.count || 0) > 0).length;
   discoveredCount.textContent = `${discovered}/${EMOJI_LIBRARY.length}`;
+  const coinsTotalEl = document.getElementById('coinsTotal');
+  if (coinsTotalEl) {
+    coinsTotalEl.textContent = `${state.coins || 0} 🪙`;
+  }
+  const heroCoinsBadge = document.getElementById('heroCoinsBadge');
+  if (heroCoinsBadge) {
+    heroCoinsBadge.textContent = `${state.coins || 0} 🪙`;
+  }
   if (headerDiscoveredCount && headerTotalCount) {
     headerDiscoveredCount.textContent = discovered;
     headerTotalCount.textContent = EMOJI_LIBRARY.length;

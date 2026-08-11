@@ -29,6 +29,9 @@
           <div class="collection-stats">
             <span class="stat-pill">Découverts : <strong id="discoveredCount">0</strong>/<strong id="totalCount">0</strong></span>
           </div>
+          <p class="subtitle" style="margin-top: 0.8rem; max-width: 760px;">Le niveau de rareté détermine le nombre de pièces obtenues en vendant des doublons : Commun 5 🪙, Peu commun 10 🪙, Rare 25 🪙, Épique 60 🪙, Légendaire 150 🪙, Ultra rare 300 🪙, Mythique 500 🪙, Légendaire Ultime 1000 🪙.</p>
+          <button id="sellAllDuplicatesBtn" class="secondary-btn" style="margin-top: 1rem;">Vendre tous les doublons</button>
+          <p id="sellResult" class="subtitle" style="margin-top: 0.65rem; color: var(--accent-2);"></p>
         </div>
         <a href="index.html" class="primary-btn" style="text-decoration:none; display:inline-flex; align-items:center; margin-left: 1rem;">Retour au jeu</a>
       </div>
@@ -95,7 +98,75 @@
 
       const state = loadState();
 
-      const renderCollection = () => {
+      const sellAllDuplicatesBtn = document.getElementById('sellAllDuplicatesBtn');
+      const sellResultEl = document.getElementById('sellResult');
+
+      function getSellPriceForRarity(entry) {
+        const rarityName = typeof entry.rarity === 'string' ? entry.rarity : entry.rarity?.name;
+        const rarity = getRarityByName ? getRarityByName(rarityName) : { name: 'Commun' };
+        const priceMap = {
+          Commun: 5,
+          'Peu commun': 10,
+          Rare: 25,
+          Épique: 60,
+          Légendaire: 150,
+          'Ultra rare': 300,
+          Mythique: 500,
+          'Légendaire Ultime': 1000
+        };
+        return priceMap[rarity.name] ?? 5;
+      }
+
+      function getDuplicateTotals() {
+        let totalDuplicates = 0;
+        let totalReward = 0;
+        Object.values(state.collection || {}).forEach((entry) => {
+          const count = Number(entry.count || 0);
+          if (count > 1) {
+            const duplicates = count - 1;
+            totalDuplicates += duplicates;
+            totalReward += duplicates * getSellPriceForRarity(entry);
+          }
+        });
+        return { totalDuplicates, totalReward };
+      }
+
+      function updateSellAllButton() {
+        if (!sellAllDuplicatesBtn) {
+          return;
+        }
+        const { totalDuplicates, totalReward } = getDuplicateTotals();
+        sellAllDuplicatesBtn.disabled = totalDuplicates === 0;
+        sellAllDuplicatesBtn.textContent = totalDuplicates
+          ? `Vendre tous les doublons (${totalDuplicates}) +${totalReward} 🪙`
+          : 'Vendre tous les doublons';
+      }
+
+      function sellAllDuplicates() {
+        const { totalDuplicates, totalReward } = getDuplicateTotals();
+        if (totalDuplicates === 0) {
+          sellResultEl.textContent = 'Aucun doublon à vendre.';
+          return;
+        }
+
+        Object.values(state.collection || {}).forEach((entry) => {
+          const count = Number(entry.count || 0);
+          if (count > 1) {
+            entry.count = 1;
+          }
+        });
+
+        state.coins = Number(state.coins || 0) + totalReward;
+        saveState(state);
+        renderCollection();
+        sellResultEl.textContent = `+${totalReward} 🪙 obtenus en vendant ${totalDuplicates} doublon${totalDuplicates > 1 ? 's' : ''}.`;
+      }
+
+      if (sellAllDuplicatesBtn) {
+        sellAllDuplicatesBtn.addEventListener('click', sellAllDuplicates);
+      }
+
+      function renderCollection() {
         const entries = Object.values(state.collection || {}).sort((a, b) => {
           const rankDiff = (getRarityRank ? getRarityRank(a.rarity) : 5) - (getRarityRank ? getRarityRank(b.rarity) : 5);
           if (rankDiff !== 0) {
@@ -106,6 +177,11 @@
         const discovered = Object.values(state.collection || {}).filter((entry) => (entry.count || 0) > 0).length;
         discoveredCountEl.textContent = discovered;
         totalCountEl.textContent = EMOJI_LIBRARY.length;
+
+        updateSellAllButton();
+        if (sellResultEl && !state.lastSellResult) {
+          sellResultEl.textContent = '';
+        }
 
         if (entries.length) {
           collectionGrid.innerHTML = '';
@@ -148,7 +224,7 @@
         } else {
           collectionGrid.innerHTML = '<div class="empty-state">Aucune carte dans la collection pour le moment.</div>';
         }
-      };
+      }
 
       renderCollection();
     </script>

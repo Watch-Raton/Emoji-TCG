@@ -78,6 +78,19 @@ h1 {
   font-size: 0.92rem;
 }
 
+.minimal-coins-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
 .primary-btn,
 .secondary-btn {
   border: 0;
@@ -706,11 +719,32 @@ h1 {
 .collection-item .meta {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.4rem;
 }
 
 .collection-item .meta .name {
   font-weight: 700;
+}
+
+.collection-item .meta .sell-btn {
+  border: 0;
+  padding: 0.55rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.collection-item .meta .sell-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.collection-item .meta .duplicate-note {
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .collection-item .meta .count {
