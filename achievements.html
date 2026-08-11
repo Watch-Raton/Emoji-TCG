@@ -32,6 +32,22 @@
           <p class="eyebrow">Emoji TCG</p>
           <h1>Succès</h1>
           <p class="subtitle">Découvre des succès amusants et gagne des pièces en accomplissant des défis difficiles.</p>
+          <p id="achievementSummary" class="subtitle" style="margin-top:0.75rem;">0 succès débloqués</p>
+          <div class="global-achievement-progress" style="margin-top:0.75rem;">
+            <div class="progress-labels" style="display:flex; justify-content:space-between; gap:1rem; align-items:center; margin-bottom:0.5rem;">
+              <span id="achievementCounter">0/0 succès</span>
+              <span id="achievementPercent">0%</span>
+            </div>
+            <div class="achievement-progress global">
+              <span id="achievementGlobalFill" class="achievement-progress-fill" style="width:0%;"></span>
+            </div>
+            <div class="achievement-milestones" style="display:flex; justify-content:space-between; gap:0.5rem; margin-top:0.5rem; font-size:1.05rem;">
+              <span class="milestone" data-threshold="33">🥉</span>
+              <span class="milestone" data-threshold="66">🥈</span>
+              <span class="milestone" data-threshold="99">🥇</span>
+              <span class="milestone" data-threshold="100">🏅</span>
+            </div>
+          </div>
           <p id="pendingAchievementCount" class="subtitle" style="margin-top:0.75rem;">0 récompense en attente</p>
           <span id="coinsCount" class="stat-pill" style="margin-top:0.4rem;">0 🪙</span>
         </div>
@@ -50,7 +66,7 @@
       function loadState() {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) {
-          return { achievementsUnlocked: {}, achievementsClaimed: {}, coins: 0, maxCoinsHeld: 0, collection: {}, boostersOpened: 0, followedTwitch: false, followedInstagram: false };
+          return { achievementsUnlocked: {}, achievementsClaimed: {}, coins: 0, maxCoinsHeld: 0, collection: {}, boostersOpened: 0, followedTwitch: false, followedInstagram: false, ownedBackgrounds: [], currentBackground: null, shopItemsPurchased: 0 };
         }
         try {
           const parsed = JSON.parse(raw);
@@ -62,10 +78,12 @@
             collection: parsed.collection || {},
             boostersOpened: Number(parsed.boostersOpened || 0),
             followedTwitch: Boolean(parsed.followedTwitch),
-            followedInstagram: Boolean(parsed.followedInstagram)
+            followedInstagram: Boolean(parsed.followedInstagram),
+            duplicatesSold: Number(parsed.duplicatesSold || 0),
+            shopItemsPurchased: Number(parsed.shopItemsPurchased || 0)
           };
         } catch {
-          return { achievementsUnlocked: {}, achievementsClaimed: {}, coins: 0, maxCoinsHeld: 0, collection: {}, boostersOpened: 0, followedTwitch: false, followedInstagram: false };
+          return { achievementsUnlocked: {}, achievementsClaimed: {}, coins: 0, maxCoinsHeld: 0, collection: {}, boostersOpened: 0, followedTwitch: false, followedInstagram: false, duplicatesSold: 0, shopItemsPurchased: 0 };
         }
       }
 
@@ -98,6 +116,48 @@
           const claimed = state.achievementsClaimed?.[definition.id];
           return count + ((unlocked && !claimed) ? 1 : 0);
         }, 0);
+      }
+
+      function getAchievementCompletionCount(state) {
+        if (!Array.isArray(ACHIEVEMENT_DEFINITIONS)) {
+          return 0;
+        }
+        return ACHIEVEMENT_DEFINITIONS.reduce((count, definition) => count + (Boolean(state.achievementsUnlocked?.[definition.id]) ? 1 : 0), 0);
+      }
+
+      function getAchievementGlobalPercent(state) {
+        if (!Array.isArray(ACHIEVEMENT_DEFINITIONS) || ACHIEVEMENT_DEFINITIONS.length === 0) {
+          return 0;
+        }
+        return Math.floor((getAchievementCompletionCount(state) / ACHIEVEMENT_DEFINITIONS.length) * 100);
+      }
+
+      function renderAchievementOverview(state) {
+        const total = Array.isArray(ACHIEVEMENT_DEFINITIONS) ? ACHIEVEMENT_DEFINITIONS.length : 0;
+        const completed = getAchievementCompletionCount(state);
+        const percent = getAchievementGlobalPercent(state);
+        const counterEl = document.getElementById('achievementCounter');
+        const percentEl = document.getElementById('achievementPercent');
+        const summaryEl = document.getElementById('achievementSummary');
+        const fillEl = document.getElementById('achievementGlobalFill');
+
+        if (counterEl) {
+          counterEl.textContent = `${completed}/${total} succès`;
+        }
+        if (percentEl) {
+          percentEl.textContent = `${percent}%`;
+        }
+        if (summaryEl) {
+          summaryEl.textContent = `${completed} succès débloqués sur ${total}`;
+        }
+        if (fillEl) {
+          fillEl.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+        }
+
+        document.querySelectorAll('.achievement-milestones .milestone').forEach((node) => {
+          const threshold = Number(node.dataset.threshold || 0);
+          node.style.opacity = threshold <= percent ? '1' : '0.3';
+        });
       }
 
       function claimAchievement(definition, state) {
@@ -141,8 +201,9 @@
           let statusText = `${formatAchievementProgress(definition, state)}`;
           let cardClass = 'achievement-card';
           let actionHtml = '';
+          const rewardText = definition.reward > 0 ? `+${definition.reward} 🪙` : 'Fond d’écran';
 
-          if (unlocked && !claimed) {
+          if (unlocked && !claimed && definition.reward > 0) {
             statusText = 'À réclamer';
             cardClass += ' pending';
             actionHtml = `<button class="achievement-claim-btn" data-achievement-id="${definition.id}">Réclamer</button>`;
@@ -160,7 +221,7 @@
             <h3>${definition.name}</h3>
             <p>${definition.description}</p>
             <div class="achievement-meta">
-              <span class="achievement-reward">+${definition.reward} 🪙</span>
+              <span class="achievement-reward">${rewardText}</span>
               <span class="achievement-status">${statusText}</span>
             </div>
             <div class="achievement-progress">
@@ -180,6 +241,8 @@
             }
           });
         });
+
+        renderAchievementOverview(state);
       }
 
       renderAchievements();

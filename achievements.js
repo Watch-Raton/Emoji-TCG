@@ -25,15 +25,15 @@ const ACHIEVEMENT_DEFINITIONS = [
   {
     id: 'duplicates-5',
     name: '💰 Vendeur de doublons',
-    description: 'Vends 5 doublons contre des boosters.',
+    description: 'Vends 5 doublons.',
     reward: 100,
     target: 5
   },
   {
     id: 'follow-twitch',
     name: '📺 Twitch addict',
-    description: 'Follow la chaîne Twitch.',
-    reward: 250,
+    description: 'Follow la chaîne Twitch pour débloquer un fond d\'écran.',
+    reward: 0,
     target: 1
   },
   {
@@ -53,7 +53,7 @@ const ACHIEVEMENT_DEFINITIONS = [
   {
     id: 'duplicates-20',
     name: '💸 Marchand de doublons',
-    description: 'Vends 20 doublons contre des boosters.',
+    description: 'Vends 20 doublons.',
     reward: 350,
     target: 20
   },
@@ -95,7 +95,7 @@ const ACHIEVEMENT_DEFINITIONS = [
   {
     id: 'duplicates-50',
     name: '💎 Empereur des échanges',
-    description: 'Vends 50 doublons contre des boosters.',
+    description: 'Vends 50 doublons.',
     reward: 1500,
     target: 50
   },
@@ -194,7 +194,7 @@ function getAchievementProgress(definition, state) {
     case 'duplicates-5':
     case 'duplicates-20':
     case 'duplicates-50':
-      return Number(state.exchangeBoosterCredits || 0);
+      return Number(state.duplicatesSold || 0);
     default:
       return 0;
   }

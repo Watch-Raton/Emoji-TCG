@@ -101,8 +101,7 @@ function ensureShopPurchaseState(now = Date.now()) {
     state.shopPurchaseHourKey = currentHour;
     state.shopPurchaseCounts = {
       'booster-credit': 0,
-      'booster-pack': 0,
-      ...(state.shopPurchaseCounts || {})
+      'booster-pack': 0
     };
     state.shopExhaustionAtByItem = {};
   }
@@ -169,7 +168,24 @@ function awardAchievements() {
         ...(state.achievementsUnlocked || {}),
         [definition.id]: true
       };
-      showToast(`Succès débloqué : ${definition.name} — récompense à réclamer`);
+
+      if (definition.id === 'follow-twitch') {
+        state.ownedBackgrounds = Array.from(new Set([...(state.ownedBackgrounds || []), SPECIAL_BACKGROUND_IMAGE]));
+        state.currentBackground = SPECIAL_BACKGROUND_IMAGE;
+        state.achievementsClaimed = {
+          ...(state.achievementsClaimed || {}),
+          [definition.id]: true
+        };
+        showToast(`Succès débloqué : ${definition.name} — nouveau fond débloqué !`);
+      } else if (definition.reward === 0) {
+        state.achievementsClaimed = {
+          ...(state.achievementsClaimed || {}),
+          [definition.id]: true
+        };
+        showToast(`Succès débloqué : ${definition.name}`);
+      } else {
+        showToast(`Succès débloqué : ${definition.name} — récompense à réclamer`);
+      }
     }
   });
 }
@@ -287,7 +303,109 @@ const SHOP_ITEMS = [
     effectDurationMs: 12 * 60 * 60 * 1000,
     emoji: '⚡'
   }
+  ,{
+    id: 'emoji-chest',
+    name: 'Coffre cosmétique',
+    description: "Débloque un fond d'écran emoji aléatoire pour le site.",
+    price: 300,
+    hourlyLimit: null,
+    emoji: '🎁',
+    effectType: 'cosmetic-chest'
+  }
 ];
+
+const SPECIAL_BACKGROUND_IMAGE = 'raton rvb.png';
+const COSMETIC_BACKGROUNDS = [
+  '🌸','🌊','⭐','🍀','🔥','🍩','🎈','🌈','🍁','❄️','🌙','☀️','🌺','🍓','🍒'
+];
+
+function makeEmojiWallpaperDataUrl(emoji) {
+  const size = 200;
+  const svg = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 ${size} ${size}'>` +
+    `<rect width='100%' height='100%' fill='transparent'/>` +
+    `<text x='50%' y='50%' font-size='64' dominant-baseline='middle' text-anchor='middle'>${emoji}</text>` +
+    `</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function applyBackground(bg) {
+  try {
+    if (!bg) {
+      document.body.style.backgroundImage = '';
+      document.body.style.backgroundColor = '';
+      return;
+    }
+    if (typeof bg === 'string' && bg.includes('.')) {
+      document.body.style.backgroundImage = `url('${bg}')`;
+      document.body.style.backgroundRepeat = 'repeat';
+      document.body.style.backgroundSize = '200px 200px';
+      return;
+    }
+    const url = makeEmojiWallpaperDataUrl(bg);
+    document.body.style.backgroundImage = `url("${url}")`;
+    document.body.style.backgroundRepeat = 'repeat';
+    document.body.style.backgroundSize = '200px 200px';
+  } catch (e) {
+    console.warn('applyBackground failed', e);
+  }
+}
+
+function getOwnedBackgrounds() {
+  return Array.isArray(state.ownedBackgrounds) ? state.ownedBackgrounds : [];
+}
+
+function addRandomBackground() {
+  const owned = new Set(getOwnedBackgrounds());
+  const candidates = COSMETIC_BACKGROUNDS.filter((b) => !owned.has(b));
+  const pick = candidates.length ? candidates[Math.floor(Math.random() * candidates.length)] : COSMETIC_BACKGROUNDS[Math.floor(Math.random() * COSMETIC_BACKGROUNDS.length)];
+  state.ownedBackgrounds = Array.from(new Set([...(state.ownedBackgrounds || []), pick]));
+  state.currentBackground = pick;
+  saveState();
+  showToast('Nouveau fond débloqué !');
+  render();
+}
+
+function renderCosmetics() {
+  const grid = document.getElementById('cosmeticsGrid');
+  const coinsDisplay = document.getElementById('cosmeticsCoins');
+  if (!grid) return;
+  if (coinsDisplay) coinsDisplay.textContent = `${state.coins || 0} 🪙`;
+  grid.innerHTML = '';
+  const owned = getOwnedBackgrounds();
+  // Owned backgrounds
+  owned.forEach((bg) => {
+    const isImage = typeof bg === 'string' && bg.includes('.');
+    const card = document.createElement('article');
+    card.className = 'cosmetic-card';
+    card.innerHTML = `
+      ${isImage ? `<img src="${bg}" alt="Fond" style="width:3rem; height:3rem; border-radius:12px; object-fit:cover;" />` : `<div class="emoji" style="font-size:2.5rem">${bg}</div>`}
+      <div class="meta">${bg === state.currentBackground ? '<strong>Appliqué</strong>' : `<button class="apply-btn">Appliquer</button>`}</div>
+    `;
+    const applyBtn = card.querySelector('.apply-btn');
+    applyBtn?.addEventListener('click', () => {
+      state.currentBackground = bg;
+      saveState();
+      applyBackground(bg);
+      renderCosmetics();
+    });
+    grid.appendChild(card);
+  });
+
+  // Locked / not owned backgrounds
+  COSMETIC_BACKGROUNDS.filter((b) => !owned.includes(b)).forEach((bg) => {
+    const card = document.createElement('article');
+    card.className = 'cosmetic-card locked';
+    card.innerHTML = `
+      <div class="emoji" style="font-size:2.5rem">${bg}</div>
+      <div class="meta"><button class="buy-chest-btn">Obtenir via coffre</button></div>
+    `;
+    card.querySelector('.buy-chest-btn')?.addEventListener('click', () => {
+      buyShopItem('emoji-chest');
+      setTimeout(renderCosmetics, 500);
+    });
+    grid.appendChild(card);
+  });
+}
 
 function getPendingAchievementsCount() {
   if (typeof ACHIEVEMENT_DEFINITIONS === 'undefined' || !Array.isArray(ACHIEVEMENT_DEFINITIONS)) {
@@ -415,11 +533,20 @@ function buyShopItem(itemId) {
     if (state.boostersAvailable < getEffectiveBoosterLimit() && !state.nextBoosterAt) {
       state.nextBoosterAt = now + BOOSTER_COOLDOWN_MS;
     }
+  } else if (item.effectType === 'cosmetic-chest') {
+    state.shopPurchaseCounts = state.shopPurchaseCounts || {};
+    const nextCount = Number(state.shopPurchaseCounts[item.id] || 0) + 1;
+    state.shopPurchaseCounts[item.id] = nextCount;
+    if (item.hourlyLimit && nextCount >= item.hourlyLimit) {
+      state.shopExhaustionAtByItem = state.shopExhaustionAtByItem || {};
+      state.shopExhaustionAtByItem[item.id] = now;
+    }
+    addRandomBackground();
   } else {
     state.shopPurchaseCounts = state.shopPurchaseCounts || {};
     const nextCount = Number(state.shopPurchaseCounts[item.id] || 0) + 1;
     state.shopPurchaseCounts[item.id] = nextCount;
-    if (nextCount >= item.hourlyLimit) {
+    if (item.hourlyLimit && nextCount >= item.hourlyLimit) {
       state.shopExhaustionAtByItem = state.shopExhaustionAtByItem || {};
       state.shopExhaustionAtByItem[item.id] = now;
     }
@@ -472,6 +599,7 @@ function renderShop() {
     const onPromotion = isItemOnPromotion(item.id, now);
     const card = document.createElement('article');
     card.className = `shop-card${isExhausted ? ' is-sold-out' : ''}${onPromotion ? ' is-promoted' : ''}`;
+    const extraButtonHtml = item.id === 'emoji-chest' ? `<button type="button" class="open-cosmetics-btn secondary-btn" style="margin-right:0.5rem;">Mes cosmétiques</button>` : '';
     const timerText = getShopItemTimerText(item, now);
     const stockText = getShopItemStockText(item, now);
     const promotedPrice = getPromotionPrice(item, now);
@@ -493,14 +621,17 @@ function renderShop() {
         </div>
         <div class="shop-meta">
           <span class="rarity-badge">
-            ${onPromotion ? `<span style="text-decoration: line-through;">${item.price}</span> <strong>${promotedPrice} 🪙</strong>` : `${promotedPrice} 🪙`}
+            ${onPromotion ? `<span class="promo-old-price">${item.price}</span> <strong>${promotedPrice} 🪙</strong>` : `${promotedPrice} 🪙`}
           </span>
+          ${extraButtonHtml}
           <button type="button" class="buy-btn" ${buttonDisabled ? 'disabled' : ''}>Acheter</button>
         </div>
       </div>
     `;
 
     card.querySelector('.buy-btn').addEventListener('click', () => buyShopItem(item.id));
+    const openBtn = card.querySelector('.open-cosmetics-btn');
+    openBtn?.addEventListener('click', () => { window.location.href = 'cosmetics.html'; });
     shopList.appendChild(card);
   });
 }
@@ -606,6 +737,9 @@ function createEmptyState() {
     shopPromotionUntil: null,
     promoCodesRedeemed: {},
     exchangeBoosterCredits: 0,
+    duplicatesSold: 0,
+    ownedBackgrounds: [],
+    currentBackground: null,
     followBonusBoosters: 0,
     followedTwitch: false,
     followedInstagram: false,
@@ -655,6 +789,9 @@ function loadState() {
       shopPromotionUntil: parsed.shopPromotionUntil ? Number(parsed.shopPromotionUntil) : null,
       promoCodesRedeemed: parsed.promoCodesRedeemed || {},
       exchangeBoosterCredits: Number(parsed.exchangeBoosterCredits || 0),
+      duplicatesSold: Number(parsed.duplicatesSold || 0),
+      ownedBackgrounds: Array.isArray(parsed.ownedBackgrounds) ? parsed.ownedBackgrounds : [],
+      currentBackground: parsed.currentBackground ?? null,
       followedTwitch: Boolean(parsed.followedTwitch || Number(parsed.followBonusBoosters || 0) >= 1),
       followedInstagram: Boolean(parsed.followedInstagram || Number(parsed.followBonusBoosters || 0) >= 2),
       followBonusBoosters: Number(parsed.followBonusBoosters || 0),
@@ -1021,6 +1158,8 @@ function renderBoosterSummary() {
 
 function render() {
   const now = Date.now();
+  // apply currently selected background (cosmetics)
+  applyBackground(state.currentBackground);
   const available = Math.max(0, getAvailableBoosters(now));
   const canOpen = available > 0;
   updateBonusButtons();

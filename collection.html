@@ -97,7 +97,8 @@
         return {
           ...parsed,
           collection: Object.fromEntries(Object.entries(parsed.collection || {}).map(([key, entry]) => [key, normalizeCollectionEntry(entry)])),
-          exchangeBoosterCredits: Number(parsed.exchangeBoosterCredits || 0)
+          exchangeBoosterCredits: Number(parsed.exchangeBoosterCredits || 0),
+          duplicatesSold: Number(parsed.duplicatesSold || 0)
         };
       };
 
@@ -178,6 +179,7 @@
         });
 
         state.coins = Number(state.coins || 0) + totalReward;
+        state.duplicatesSold = (state.duplicatesSold || 0) + totalDuplicates;
         saveState(state);
         renderCollection();
         sellResultEl.textContent = `+${totalReward} 🪙 obtenus en vendant ${totalDuplicates} doublon${totalDuplicates > 1 ? 's' : ''}.`;
@@ -252,6 +254,7 @@
                   currentEntry.count = nextCount;
                 }
                 state.exchangeBoosterCredits = (state.exchangeBoosterCredits || 0) + 1;
+                state.duplicatesSold = (state.duplicatesSold || 0) + 5;
                 saveState(state);
                 renderCollection();
               });
