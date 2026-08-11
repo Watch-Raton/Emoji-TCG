@@ -520,6 +520,12 @@ function buyShopItem(itemId) {
   if (!item) {
     return;
   }
+
+  // Prevent buying a temporary capacity booster while its effect is still active
+  if (item.effectType === 'temporary-capacity' && (state.tempBoosterCapacityUntil || 0) > now) {
+    showToast('Ce booster de capacité est déjà actif.');
+    return;
+  }
   
   if ((state.coins || 0) < price) {
     showToast('Pas assez de pièces.');
@@ -603,7 +609,10 @@ function renderShop() {
 
   SHOP_ITEMS.forEach((item) => {
     const purchaseCount = getShopItemPurchaseCount(item, now);
-    const isExhausted = Boolean(item.hourlyLimit && purchaseCount >= item.hourlyLimit);
+    let isExhausted = Boolean(item.hourlyLimit && purchaseCount >= item.hourlyLimit);
+    if (item.effectType === 'temporary-capacity' && (state.tempBoosterCapacityUntil || 0) > now) {
+      isExhausted = true;
+    }
     const onPromotion = isItemOnPromotion(item.id, now);
     const card = document.createElement('article');
     card.className = `shop-card${isExhausted ? ' is-sold-out' : ''}${onPromotion ? ' is-promoted' : ''}`;
