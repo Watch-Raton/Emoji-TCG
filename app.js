@@ -318,9 +318,15 @@ const SHOP_ITEMS = [
 ];
 
 const SPECIAL_BACKGROUND_IMAGE = 'raton rbv.png';
-const COSMETIC_BACKGROUNDS = [
-  '🌸','🌊','⭐','🍀','🔥','🍩','🎈','🌈','🍁','❄️','🌙','☀️','🌺','🍓','🍒'
-];
+const COSMETIC_BACKGROUNDS = (function() {
+  const base = ['🌸','🌊','⭐','🍀','🔥','🍩','🎈','🌈','🍁','❄️','🌙','☀️','🌺','🍓','🍒'];
+  try {
+    const lib = Array.isArray(window.EmojiTCGData?.EMOJI_LIBRARY) ? window.EmojiTCGData.EMOJI_LIBRARY.map(e => e.symbol).filter(Boolean) : [];
+    return Array.from(new Set([...base, ...lib]));
+  } catch (e) {
+    return base;
+  }
+})();
 
 function makeEmojiWallpaperDataUrl(emoji) {
   const size = 200;
@@ -524,12 +530,12 @@ function buyShopItem(itemId) {
   // Prevent buying a temporary capacity booster while its effect is still active
   if (item.effectType === 'temporary-capacity' && (state.tempBoosterCapacityUntil || 0) > now) {
     showToast('Ce booster de capacité est déjà actif.');
-    return;
+    return false;
   }
   
   if ((state.coins || 0) < price) {
     showToast('Pas assez de pièces.');
-    return;
+    return false;
   }
 
   state.coins = (state.coins || 0) - price;
@@ -537,7 +543,7 @@ function buyShopItem(itemId) {
 
   if ((item.hourlyLimit || Infinity) < Infinity && getShopItemPurchaseCount(item, now) >= item.hourlyLimit) {
     showToast('Cet article est épuisé pour cette heure.');
-    return;
+    return false;
   }
 
   if (item.effectType === 'temporary-capacity') {
@@ -574,6 +580,7 @@ function buyShopItem(itemId) {
   awardAchievements();
   saveState();
   render();
+  return true;
 }
 
 function getPromotionTimerText(now = Date.now()) {

@@ -30,7 +30,6 @@
       </div>
 
       <div style="margin-bottom:1rem; display:flex; gap:0.75rem; align-items:center;">
-        <button id="buyChestBtn" class="primary-action">Acheter Coffre cosmétique (300 🪙)</button>
         <button id="resetBackgroundBtn" class="secondary-btn">Revenir au fond par défaut</button>
       </div>
 
@@ -40,12 +39,6 @@
     <script src="emoji-data.js"></script>
     <script src="app.js"></script>
     <script>
-      const buyChestBtn = document.getElementById('buyChestBtn');
-      buyChestBtn?.addEventListener('click', () => {
-        buyShopItem('emoji-chest');
-        setTimeout(() => { renderCosmetics(); }, 300);
-      });
-
       const resetBtn = document.getElementById('resetBackgroundBtn');
       resetBtn?.addEventListener('click', () => {
         state.currentBackground = null;
