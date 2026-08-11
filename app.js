@@ -429,6 +429,7 @@ function buyShopItem(itemId) {
     }
   }
 
+  state.shopItemsPurchased = (state.shopItemsPurchased || 0) + 1;
   awardAchievements();
   saveState();
   render();
