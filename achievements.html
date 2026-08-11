@@ -23,6 +23,10 @@
       .achievement-card.claimed { border-color: rgba(34, 197, 94, 0.7); background: rgba(34, 197, 94, 0.08); }
       .achievement-card.claimed .achievement-status { color: #22c55e; }
       .achievement-card.unlocked { border-color: rgba(34, 197, 94, 0.7); background: rgba(34, 197, 94, 0.08); }
+      .achievement-milestones { display:flex; justify-content:space-between; gap:0.5rem; margin-top:0.5rem; font-size:1.05rem; }
+      .achievement-milestones .milestone { display:inline-flex; align-items:center; justify-content:center; width:2.3rem; height:2.3rem; border-radius:999px; background: rgba(255,255,255,0.08); color: var(--text); filter: grayscale(1); opacity: 0.35; position:relative; transition: all 0.25s ease; }
+      .achievement-milestones .milestone.activated { filter: grayscale(0); opacity:1; background: rgba(34,197,94,0.14); color: #22c55e; }
+      .achievement-milestones .milestone.activated::after { content: '✓'; position: absolute; right: -0.2rem; bottom: -0.2rem; width: 1rem; height: 1rem; border-radius: 999px; background: #22c55e; color: white; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.3); }
     </style>
   </head>
   <body>
@@ -66,7 +70,7 @@
       function loadState() {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) {
-          return { achievementsUnlocked: {}, achievementsClaimed: {}, coins: 0, maxCoinsHeld: 0, collection: {}, boostersOpened: 0, followedTwitch: false, followedInstagram: false, ownedBackgrounds: [], currentBackground: null, shopItemsPurchased: 0 };
+          return { achievementsUnlocked: {}, achievementsClaimed: {}, coins: 0, maxCoinsHeld: 0, collection: {}, boostersOpened: 0, followedTwitch: false, followedInstagram: false, ownedBackgrounds: [], currentBackground: null, duplicatesSold: 0, shopItemsPurchased: 0, totalCoinsEarned: 0, totalCoinsSpent: 0, totalCosmeticsObtained: 0 };
         }
         try {
           const parsed = JSON.parse(raw);
@@ -80,10 +84,15 @@
             followedTwitch: Boolean(parsed.followedTwitch),
             followedInstagram: Boolean(parsed.followedInstagram),
             duplicatesSold: Number(parsed.duplicatesSold || 0),
-            shopItemsPurchased: Number(parsed.shopItemsPurchased || 0)
+            shopItemsPurchased: Number(parsed.shopItemsPurchased || 0),
+            totalCoinsEarned: Number(parsed.totalCoinsEarned || 0),
+            totalCoinsSpent: Number(parsed.totalCoinsSpent || 0),
+            totalCosmeticsObtained: Number(parsed.totalCosmeticsObtained || 0),
+            ownedBackgrounds: Array.isArray(parsed.ownedBackgrounds) ? parsed.ownedBackgrounds : [],
+            currentBackground: parsed.currentBackground ?? null
           };
         } catch {
-          return { achievementsUnlocked: {}, achievementsClaimed: {}, coins: 0, maxCoinsHeld: 0, collection: {}, boostersOpened: 0, followedTwitch: false, followedInstagram: false, duplicatesSold: 0, shopItemsPurchased: 0 };
+          return { achievementsUnlocked: {}, achievementsClaimed: {}, coins: 0, maxCoinsHeld: 0, collection: {}, boostersOpened: 0, followedTwitch: false, followedInstagram: false, duplicatesSold: 0, shopItemsPurchased: 0, totalCoinsEarned: 0, totalCoinsSpent: 0, totalCosmeticsObtained: 0 };
         }
       }
 
@@ -95,7 +104,10 @@
           achievementsUnlocked: state.achievementsUnlocked,
           achievementsClaimed: state.achievementsClaimed,
           coins: state.coins,
-          maxCoinsHeld: state.maxCoinsHeld
+          maxCoinsHeld: state.maxCoinsHeld,
+          totalCoinsEarned: Number(state.totalCoinsEarned || current.totalCoinsEarned || 0),
+          totalCoinsSpent: Number(state.totalCoinsSpent || current.totalCoinsSpent || 0),
+          totalCosmeticsObtained: Number(state.totalCosmeticsObtained || current.totalCosmeticsObtained || 0)
         }));
       }
 
@@ -156,7 +168,11 @@
 
         document.querySelectorAll('.achievement-milestones .milestone').forEach((node) => {
           const threshold = Number(node.dataset.threshold || 0);
-          node.style.opacity = threshold <= percent ? '1' : '0.3';
+          if (threshold <= percent) {
+            node.classList.add('activated');
+          } else {
+            node.classList.remove('activated');
+          }
         });
       }
 
@@ -169,11 +185,27 @@
           ...(state.achievementsClaimed || {}),
           [definition.id]: true
         };
-        state.coins = Number(state.coins || 0) + Number(definition.reward || 0);
+        const rewardValue = Number(definition.reward || 0);
+        state.coins = Number(state.coins || 0) + rewardValue;
+        state.totalCoinsEarned = (state.totalCoinsEarned || 0) + rewardValue;
         state.maxCoinsHeld = Math.max(Number(state.maxCoinsHeld || 0), state.coins);
         saveState(state);
         updatePendingAchievementCount(state);
         renderAchievements();
+      }
+
+      function getAchievementCategoryRank(definition) {
+        const id = definition.id || '';
+        if (id.startsWith('booster-')) return 1;
+        if (id.startsWith('shop-buy-')) return 2;
+        if (id.startsWith('duplicates-')) return 3;
+        if (id.startsWith('legendary-')) return 4;
+        if (id.startsWith('coins-')) return 5;
+        if (id.startsWith('cosmetics-')) return 6;
+        if (id.startsWith('follow-')) return 7;
+        if (id === 'all-families' || id === 'all-emojis') return 8;
+        if (id === 'raccoon-hunter') return 9;
+        return 10;
       }
 
       function renderAchievements() {
@@ -191,7 +223,18 @@
 
         updatePendingAchievementCount(state);
 
-        ACHIEVEMENT_DEFINITIONS.forEach((definition) => {
+        const sortedAchievements = [...ACHIEVEMENT_DEFINITIONS].sort((a, b) => {
+          const rankDiff = getAchievementCategoryRank(a) - getAchievementCategoryRank(b);
+          if (rankDiff !== 0) {
+            return rankDiff;
+          }
+          if (a.reward !== b.reward) {
+            return a.reward - b.reward;
+          }
+          return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
+        });
+
+        sortedAchievements.forEach((definition) => {
           const current = getAchievementProgress(definition, state);
           const target = getAchievementTarget(definition);
           const unlocked = Boolean(state.achievementsUnlocked?.[definition.id]);

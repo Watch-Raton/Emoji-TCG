@@ -179,6 +179,7 @@
         });
 
         state.coins = Number(state.coins || 0) + totalReward;
+        state.totalCoinsEarned = (state.totalCoinsEarned || 0) + totalReward;
         state.duplicatesSold = (state.duplicatesSold || 0) + totalDuplicates;
         saveState(state);
         renderCollection();

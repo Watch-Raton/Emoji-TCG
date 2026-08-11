@@ -16,18 +16,18 @@ const ACHIEVEMENT_DEFINITIONS = [
     target: 10
   },
   {
-    id: 'shop-buy-5',
+    id: 'shop-buy-10',
     name: '🛍️ Petit acheteur',
-    description: 'Achète 5 articles dans la boutique.',
-    reward: 100,
-    target: 5
+    description: 'Achète 10 articles dans la boutique.',
+    reward: 150,
+    target: 10
   },
   {
-    id: 'duplicates-5',
+    id: 'duplicates-10',
     name: '💰 Vendeur de doublons',
-    description: 'Vends 5 doublons.',
-    reward: 100,
-    target: 5
+    description: 'Vends 10 doublons.',
+    reward: 150,
+    target: 10
   },
   {
     id: 'follow-twitch',
@@ -42,20 +42,6 @@ const ACHIEVEMENT_DEFINITIONS = [
     description: 'Follow le compte Instagram.',
     reward: 250,
     target: 1
-  },
-  {
-    id: 'shop-buy-20',
-    name: '🛍️🛍️ Gros acheteur',
-    description: 'Achète 20 articles dans la boutique.',
-    reward: 350,
-    target: 20
-  },
-  {
-    id: 'duplicates-20',
-    name: '💸 Marchand de doublons',
-    description: 'Vends 20 doublons.',
-    reward: 350,
-    target: 20
   },
   {
     id: 'booster-50',
@@ -93,6 +79,20 @@ const ACHIEVEMENT_DEFINITIONS = [
     target: 50
   },
   {
+    id: 'shop-buy-100',
+    name: '🛍️🛍️🛍️🛍️ Super acheteur',
+    description: 'Achète 100 articles dans la boutique.',
+    reward: 2000,
+    target: 100
+  },
+  {
+    id: 'shop-buy-1000',
+    name: '🛍️🛍️🛍️🛍️🛍️ Accro suprême',
+    description: 'Achète 1000 articles dans la boutique.',
+    reward: 5000,
+    target: 1000
+  },
+  {
     id: 'duplicates-50',
     name: '💎 Empereur des échanges',
     description: 'Vends 50 doublons.',
@@ -100,11 +100,53 @@ const ACHIEVEMENT_DEFINITIONS = [
     target: 50
   },
   {
+    id: 'duplicates-100',
+    name: '💎 Marchand légendaire',
+    description: 'Vends 100 doublons.',
+    reward: 2000,
+    target: 100
+  },
+  {
+    id: 'duplicates-1000',
+    name: '💎 Roi des doublons',
+    description: 'Vends 1000 doublons.',
+    reward: 5000,
+    target: 1000
+  },
+  {
     id: 'legendary-50',
     name: '✨ Légende vivante',
     description: 'Obtiens 50 émojis légendaires.',
     reward: 2000,
     target: 50
+  },
+  {
+    id: 'coins-earned-100000',
+    name: '💰 Fortune accumulée',
+    description: 'Obtiens 100000 pièces depuis le début.',
+    reward: 3000,
+    target: 100000
+  },
+  {
+    id: 'coins-spent-100000',
+    name: '🏦 Grande dépense',
+    description: 'Dépense 100000 pièces depuis le début.',
+    reward: 3000,
+    target: 100000
+  },
+  {
+    id: 'cosmetics-100',
+    name: '🎨 Collectionneur stylé',
+    description: 'Obtient 100 cosmétiques.',
+    reward: 2500,
+    target: 100
+  },
+  {
+    id: 'cosmetics-1000',
+    name: '🌟 Maestro des styles',
+    description: 'Obtient 1000 cosmétiques.',
+    reward: 5000,
+    target: 1000
   },
   {
     id: 'booster-500',
@@ -187,14 +229,23 @@ function getAchievementProgress(definition, state) {
       return getDiscoveredCount(state);
     case 'all-families':
       return getDiscoveredFamilyCount(state);
-    case 'shop-buy-5':
-    case 'shop-buy-20':
+    case 'shop-buy-10':
     case 'shop-buy-50':
+    case 'shop-buy-100':
+    case 'shop-buy-1000':
       return Number(state.shopItemsPurchased || 0);
-    case 'duplicates-5':
-    case 'duplicates-20':
+    case 'duplicates-10':
     case 'duplicates-50':
+    case 'duplicates-100':
+    case 'duplicates-1000':
       return Number(state.duplicatesSold || 0);
+    case 'coins-earned-100000':
+      return Number(state.totalCoinsEarned || 0);
+    case 'coins-spent-100000':
+      return Number(state.totalCoinsSpent || 0);
+    case 'cosmetics-100':
+    case 'cosmetics-1000':
+      return Number(state.totalCosmeticsObtained || 0);
     default:
       return 0;
   }
@@ -210,7 +261,10 @@ function getAchievementTarget(definition) {
 function formatAchievementProgress(definition, state) {
   const current = getAchievementProgress(definition, state);
   const target = getAchievementTarget(definition);
-  if (target === 1 && (definition.id.startsWith('follow-') || definition.id === 'raccoon-hunter')) {
+  if (definition.id === 'raccoon-hunter') {
+    return `${Math.min(current, target)}/${target}`;
+  }
+  if (target === 1 && definition.id.startsWith('follow-')) {
     return current >= target ? 'Oui' : 'Non';
   }
   return `${Math.min(current, target)}/${target}`;

@@ -170,6 +170,9 @@ function awardAchievements() {
       };
 
       if (definition.id === 'follow-twitch') {
+        if (!(state.ownedBackgrounds || []).includes(SPECIAL_BACKGROUND_IMAGE)) {
+          state.totalCosmeticsObtained = (state.totalCosmeticsObtained || 0) + 1;
+        }
         state.ownedBackgrounds = Array.from(new Set([...(state.ownedBackgrounds || []), SPECIAL_BACKGROUND_IMAGE]));
         state.currentBackground = SPECIAL_BACKGROUND_IMAGE;
         state.achievementsClaimed = {
@@ -314,7 +317,7 @@ const SHOP_ITEMS = [
   }
 ];
 
-const SPECIAL_BACKGROUND_IMAGE = 'raton rvb.png';
+const SPECIAL_BACKGROUND_IMAGE = 'raton rbv.png';
 const COSMETIC_BACKGROUNDS = [
   '🌸','🌊','⭐','🍀','🔥','🍩','🎈','🌈','🍁','❄️','🌙','☀️','🌺','🍓','🍒'
 ];
@@ -336,15 +339,18 @@ function applyBackground(bg) {
       return;
     }
     if (typeof bg === 'string' && bg.includes('.')) {
-      document.body.style.backgroundImage = `url('${bg}')`;
+      const url = encodeURI(bg);
+      document.body.style.backgroundImage = `url('${url}')`;
       document.body.style.backgroundRepeat = 'repeat';
       document.body.style.backgroundSize = '200px 200px';
+      document.body.style.backgroundPosition = 'center center';
       return;
     }
     const url = makeEmojiWallpaperDataUrl(bg);
     document.body.style.backgroundImage = `url("${url}")`;
     document.body.style.backgroundRepeat = 'repeat';
     document.body.style.backgroundSize = '200px 200px';
+    document.body.style.backgroundPosition = 'center center';
   } catch (e) {
     console.warn('applyBackground failed', e);
   }
@@ -520,12 +526,13 @@ function buyShopItem(itemId) {
     return;
   }
 
+  state.coins = (state.coins || 0) - price;
+  state.totalCoinsSpent = (state.totalCoinsSpent || 0) + price;
+
   if ((item.hourlyLimit || Infinity) < Infinity && getShopItemPurchaseCount(item, now) >= item.hourlyLimit) {
     showToast('Cet article est épuisé pour cette heure.');
     return;
   }
-
-  state.coins = (state.coins || 0) - price;
 
   if (item.effectType === 'temporary-capacity') {
     state.tempBoosterCapacityUntil = now + item.effectDurationMs;
@@ -541,6 +548,7 @@ function buyShopItem(itemId) {
       state.shopExhaustionAtByItem = state.shopExhaustionAtByItem || {};
       state.shopExhaustionAtByItem[item.id] = now;
     }
+    state.totalCosmeticsObtained = (state.totalCosmeticsObtained || 0) + 1;
     addRandomBackground();
   } else {
     state.shopPurchaseCounts = state.shopPurchaseCounts || {};
@@ -657,6 +665,7 @@ function applyPromoCode() {
 
   if (code === 'MOULAGA') {
     state.coins = Number(state.coins || 0) + 500;
+    state.totalCoinsEarned = (state.totalCoinsEarned || 0) + 500;
     redeemedCodes[code] = true;
     state.promoCodesRedeemed = redeemedCodes;
     saveState();
@@ -738,6 +747,9 @@ function createEmptyState() {
     promoCodesRedeemed: {},
     exchangeBoosterCredits: 0,
     duplicatesSold: 0,
+    totalCoinsEarned: 0,
+    totalCoinsSpent: 0,
+    totalCosmeticsObtained: 0,
     ownedBackgrounds: [],
     currentBackground: null,
     followBonusBoosters: 0,
@@ -790,12 +802,16 @@ function loadState() {
       promoCodesRedeemed: parsed.promoCodesRedeemed || {},
       exchangeBoosterCredits: Number(parsed.exchangeBoosterCredits || 0),
       duplicatesSold: Number(parsed.duplicatesSold || 0),
+      totalCoinsEarned: Number(parsed.totalCoinsEarned || 0),
+      totalCoinsSpent: Number(parsed.totalCoinsSpent || 0),
+      totalCosmeticsObtained: Number(parsed.totalCosmeticsObtained || 0),
       ownedBackgrounds: Array.isArray(parsed.ownedBackgrounds) ? parsed.ownedBackgrounds : [],
       currentBackground: parsed.currentBackground ?? null,
       followedTwitch: Boolean(parsed.followedTwitch || Number(parsed.followBonusBoosters || 0) >= 1),
       followedInstagram: Boolean(parsed.followedInstagram || Number(parsed.followBonusBoosters || 0) >= 2),
       followBonusBoosters: Number(parsed.followBonusBoosters || 0),
       coins: Number(parsed.coins || 0),
+      shopItemsPurchased: Number(parsed.shopItemsPurchased || 0),
       boosterUsesThisHour: 0
     };
 
@@ -805,8 +821,29 @@ function loadState() {
   }
 }
 
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function saveState(s) {
+  const toSave = s || state;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+  } catch (e) {
+    // Fallback: try to stringify a reduced state if storage overflows
+    try {
+      const minimal = {
+        coins: Number(toSave.coins || 0),
+        collection: toSave.collection || {},
+        achievementsUnlocked: toSave.achievementsUnlocked || {},
+        achievementsClaimed: toSave.achievementsClaimed || {},
+        ownedBackgrounds: toSave.ownedBackgrounds || [],
+        currentBackground: toSave.currentBackground ?? null,
+        totalCoinsEarned: Number(toSave.totalCoinsEarned || 0),
+        totalCoinsSpent: Number(toSave.totalCoinsSpent || 0),
+        totalCosmeticsObtained: Number(toSave.totalCosmeticsObtained || 0)
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(minimal));
+    } catch (err) {
+      console.error('Failed to save state', err);
+    }
+  }
 }
 
 function makeEmojiKey(emoji) {
