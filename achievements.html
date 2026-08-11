@@ -33,6 +33,7 @@
           <h1>Succès</h1>
           <p class="subtitle">Découvre des succès amusants et gagne des pièces en accomplissant des défis difficiles.</p>
           <p id="pendingAchievementCount" class="subtitle" style="margin-top:0.75rem;">0 récompense en attente</p>
+          <span id="coinsCount" class="stat-pill" style="margin-top:0.4rem;">0 🪙</span>
         </div>
         <a href="index.html" class="primary-btn" style="text-decoration:none; display:inline-flex; align-items:center;">Retour au jeu</a>
       </div>
@@ -43,6 +44,7 @@
     <script src="achievements.js"></script>
     <script>
       const achievementGrid = document.getElementById('achievementGrid');
+      const coinsCountEl = document.getElementById('coinsCount');
       const STORAGE_KEY = 'emoji-tcg-save-v1';
 
       function loadState() {
@@ -79,6 +81,14 @@
         }));
       }
 
+      function updatePendingAchievementCount(state) {
+        const pendingCount = getPendingAchievementCount(state);
+        const pendingCountElement = document.getElementById('pendingAchievementCount');
+        if (pendingCountElement) {
+          pendingCountElement.textContent = `${pendingCount} récompense${pendingCount === 1 ? '' : 's'} en attente`;
+        }
+      }
+
       function getPendingAchievementCount(state) {
         if (!Array.isArray(ACHIEVEMENT_DEFINITIONS)) {
           return 0;
@@ -102,6 +112,7 @@
         state.coins = Number(state.coins || 0) + Number(definition.reward || 0);
         state.maxCoinsHeld = Math.max(Number(state.maxCoinsHeld || 0), state.coins);
         saveState(state);
+        updatePendingAchievementCount(state);
         renderAchievements();
       }
 
@@ -114,11 +125,11 @@
           return;
         }
 
-        const pendingCount = getPendingAchievementCount(state);
-        const pendingCountElement = document.getElementById('pendingAchievementCount');
-        if (pendingCountElement) {
-          pendingCountElement.textContent = `${pendingCount} récompense${pendingCount === 1 ? '' : 's'} en attente`;
+        if (coinsCountEl) {
+          coinsCountEl.textContent = `${Number(state.coins || 0)} 🪙`;
         }
+
+        updatePendingAchievementCount(state);
 
         ACHIEVEMENT_DEFINITIONS.forEach((definition) => {
           const current = getAchievementProgress(definition, state);

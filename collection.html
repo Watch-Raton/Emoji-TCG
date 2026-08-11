@@ -11,6 +11,9 @@
       .collection-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.9rem; }
       .collection-card { padding: 0.9rem; border-radius: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
       .collection-stats { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.7rem; }
+      .collection-toolbar { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0 0 1rem; }
+      .collection-toolbar button { border: 0; padding: 0.7rem 1rem; border-radius: 999px; background: rgba(255,255,255,0.1); color: var(--text); cursor: pointer; }
+      .collection-toolbar button.is-active { background: linear-gradient(135deg, rgba(129,140,248,0.85), rgba(236,72,153,0.75)); }
       .stat-pill { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.75rem; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: var(--text); font-size: 0.92rem; }
       .collection-card .emoji { font-size: 2rem; }
       .collection-card .name { display: block; font-weight: 700; margin-top: 0.35rem; }
@@ -28,12 +31,17 @@
           <p class="subtitle">Consulte tous les emojis que tu as obtenus, avec la couleur de rareté associée.</p>
           <div class="collection-stats">
             <span class="stat-pill">Découverts : <strong id="discoveredCount">0</strong>/<strong id="totalCount">0</strong></span>
+            <span class="stat-pill">Pièces : <strong id="coinsCount">0</strong> 🪙</span>
           </div>
           <p class="subtitle" style="margin-top: 0.8rem; max-width: 760px;">Le niveau de rareté détermine le nombre de pièces obtenues en vendant des doublons : Commun 5 🪙, Peu commun 10 🪙, Rare 25 🪙, Épique 60 🪙, Légendaire 150 🪙, Ultra rare 300 🪙, Mythique 500 🪙, Légendaire Ultime 1000 🪙.</p>
           <button id="sellAllDuplicatesBtn" class="secondary-btn" style="margin-top: 1rem;">Vendre tous les doublons</button>
           <p id="sellResult" class="subtitle" style="margin-top: 0.65rem; color: var(--accent-2);"></p>
         </div>
         <a href="index.html" class="primary-btn" style="text-decoration:none; display:inline-flex; align-items:center; margin-left: 1rem;">Retour au jeu</a>
+      </div>
+      <div class="collection-toolbar">
+        <button id="showAllBtn" class="is-active" type="button">Tous</button>
+        <button id="showDuplicatesBtn" type="button">En double</button>
       </div>
       <div id="collectionGrid" class="collection-grid"></div>
     </main>
@@ -44,6 +52,7 @@
       const collectionGrid = document.getElementById('collectionGrid');
       const discoveredCountEl = document.getElementById('discoveredCount');
       const totalCountEl = document.getElementById('totalCount');
+      const coinsCountEl = document.getElementById('coinsCount');
       const { getRarityByName, getRarityRank, EMOJI_LIBRARY = [] } = window.EmojiTCGData || {};
       const libraryBySymbol = new Map(EMOJI_LIBRARY.map((emoji) => [emoji.symbol, emoji]));
 
@@ -100,6 +109,9 @@
 
       const sellAllDuplicatesBtn = document.getElementById('sellAllDuplicatesBtn');
       const sellResultEl = document.getElementById('sellResult');
+      const showAllBtn = document.getElementById('showAllBtn');
+      const showDuplicatesBtn = document.getElementById('showDuplicatesBtn');
+      let activeCollectionFilter = 'all';
 
       function getSellPriceForRarity(entry) {
         const rarityName = typeof entry.rarity === 'string' ? entry.rarity : entry.rarity?.name;
@@ -129,6 +141,15 @@
           }
         });
         return { totalDuplicates, totalReward };
+      }
+
+      function updateCollectionFilterButtons() {
+        [showAllBtn, showDuplicatesBtn].forEach((button) => button.classList.remove('is-active'));
+        if (activeCollectionFilter === 'duplicates') {
+          showDuplicatesBtn.classList.add('is-active');
+        } else {
+          showAllBtn.classList.add('is-active');
+        }
       }
 
       function updateSellAllButton() {
@@ -166,18 +187,34 @@
         sellAllDuplicatesBtn.addEventListener('click', sellAllDuplicates);
       }
 
+      [showAllBtn, showDuplicatesBtn].forEach((button) => {
+        button?.addEventListener('click', () => {
+          activeCollectionFilter = button === showDuplicatesBtn ? 'duplicates' : 'all';
+          updateCollectionFilterButtons();
+          renderCollection();
+        });
+      });
+
       function renderCollection() {
-        const entries = Object.values(state.collection || {}).sort((a, b) => {
+        let entries = Object.values(state.collection || {}).sort((a, b) => {
           const rankDiff = (getRarityRank ? getRarityRank(a.rarity) : 5) - (getRarityRank ? getRarityRank(b.rarity) : 5);
           if (rankDiff !== 0) {
             return rankDiff;
           }
           return b.count - a.count;
         });
+        if (activeCollectionFilter === 'duplicates') {
+          entries = entries.filter((entry) => Number(entry.count || 0) > 1);
+        }
+
         const discovered = Object.values(state.collection || {}).filter((entry) => (entry.count || 0) > 0).length;
         discoveredCountEl.textContent = discovered;
         totalCountEl.textContent = EMOJI_LIBRARY.length;
+        if (coinsCountEl) {
+          coinsCountEl.textContent = Number(state.coins || 0);
+        }
 
+        updateCollectionFilterButtons();
         updateSellAllButton();
         if (sellResultEl && !state.lastSellResult) {
           sellResultEl.textContent = '';
@@ -191,10 +228,12 @@
             const card = document.createElement('article');
             card.className = 'collection-card';
             card.style.borderColor = `${color}55`;
+            const sellPrice = getSellPriceForRarity(entry);
             card.innerHTML = `
               <div class="emoji">${entry.symbol}</div>
               <span class="name">${getDisplayName(entry)}</span>
               <div class="meta">x${entry.count} · <span style="color:${color}; font-weight:700;">${rarity.name}</span></div>
+              <div class="meta">Prix de vente : <strong>${sellPrice} 🪙</strong></div>
             `;
 
             if ((entry.count || 0) >= 5) {

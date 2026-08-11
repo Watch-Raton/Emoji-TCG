@@ -48,6 +48,7 @@ let confettiLayer = null;
 let audioContext = null;
 let confettiSoundPlayed = false;
 let audioReady = false;
+let shopTimerInterval = null;
 
 if (!window.EmojiTCGData) {
   console.warn('emoji-data.js is not loaded');
@@ -66,38 +67,81 @@ const boosterResults = document.getElementById('boosterResults');
 const collectionList = document.getElementById('collectionList');
 const libraryList = document.getElementById('libraryList');
 const lastResultBadge = document.getElementById('lastResultBadge');
+const promoCodeInput = document.getElementById('promoCodeInput');
+const applyPromoBtn = document.getElementById('applyPromoBtn');
+const promoResultEl = document.getElementById('promoResult');
+const achievementsCard = document.getElementById('achievementsCard');
+
+function syncFollowBonusState() {
+  const twitchBonus = Boolean(state.followedTwitch);
+  const instagramBonus = Boolean(state.followedInstagram);
+  state.followBonusBoosters = (twitchBonus ? 1 : 0) + (instagramBonus ? 1 : 0);
+  return state.followBonusBoosters;
+}
 
 function updateBonusButtons() {
-  const bonusCount = (state.followBonusBoosters || 0);
+  syncFollowBonusState();
   if (twitchFollowBtn) {
-    twitchFollowBtn.classList.toggle('is-active', bonusCount >= 1);
-    twitchFollowBtn.setAttribute('aria-label', bonusCount >= 1 ? 'Bonus Twitch actif' : 'Activer le bonus Twitch');
+    twitchFollowBtn.classList.toggle('is-active', Boolean(state.followedTwitch));
+    twitchFollowBtn.setAttribute('aria-label', Boolean(state.followedTwitch) ? 'Bonus Twitch actif' : 'Activer le bonus Twitch');
   }
   if (instagramFollowBtn) {
-    instagramFollowBtn.classList.toggle('is-active', bonusCount >= 2);
-    instagramFollowBtn.setAttribute('aria-label', bonusCount >= 2 ? 'Bonus Instagram actif' : 'Activer le bonus Instagram');
+    instagramFollowBtn.classList.toggle('is-active', Boolean(state.followedInstagram));
+    instagramFollowBtn.setAttribute('aria-label', Boolean(state.followedInstagram) ? 'Bonus Instagram actif' : 'Activer le bonus Instagram');
   }
 }
 
+function getHourBucket(now = Date.now()) {
+  return Math.floor(now / 3600000);
+}
+
+function ensureShopPurchaseState(now = Date.now()) {
+  const currentHour = getHourBucket(now);
+  if (state.shopPurchaseHourKey !== currentHour) {
+    state.shopPurchaseHourKey = currentHour;
+    state.shopPurchaseCounts = {
+      'booster-credit': 0,
+      'booster-pack': 0,
+      ...(state.shopPurchaseCounts || {})
+    };
+    state.shopExhaustionAtByItem = {};
+  }
+  return state.shopPurchaseCounts || {};
+}
+
+function isTemporaryBoosterCapacityActive(now = Date.now()) {
+  if (!state.tempBoosterCapacityUntil) {
+    return false;
+  }
+
+  if (state.tempBoosterCapacityUntil <= now) {
+    state.tempBoosterCapacityUntil = null;
+    return false;
+  }
+
+  return true;
+}
+
 function getEffectiveBoosterLimit() {
-  return MAX_BOOSTERS_IN_INVENTORY + (state.followBonusBoosters || 0);
+  const bonusBoosters = syncFollowBonusState();
+  const tempBoosters = isTemporaryBoosterCapacityActive() ? 1 : 0;
+  return MAX_BOOSTERS_IN_INVENTORY + bonusBoosters + tempBoosters;
 }
 
 function applyFollowBonus(type) {
   if (type === 'twitch') {
-    if ((state.followBonusBoosters || 0) >= 1) {
+    if (Boolean(state.followedTwitch)) {
       return false;
     }
-    state.followBonusBoosters = 1;
     state.followedTwitch = true;
   } else if (type === 'instagram') {
-    if ((state.followBonusBoosters || 0) >= 2) {
+    if (Boolean(state.followedInstagram)) {
       return false;
     }
-    state.followBonusBoosters = Math.max((state.followBonusBoosters || 0), 2);
     state.followedInstagram = true;
   }
 
+  syncFollowBonusState();
   state.boostersAvailable = Math.min(getEffectiveBoosterLimit(), Math.max(state.boostersAvailable || 0, 1));
   if ((state.boostersAvailable || 0) < getEffectiveBoosterLimit() && !state.nextBoosterAt) {
     state.nextBoosterAt = Date.now() + BOOSTER_COOLDOWN_MS;
@@ -143,6 +187,19 @@ if (instagramFollowBtn) {
     event.preventDefault();
     applyFollowBonus('instagram');
     window.open(instagramFollowBtn.href, '_blank', 'noopener,noreferrer');
+  });
+}
+
+if (applyPromoBtn) {
+  applyPromoBtn.addEventListener('click', applyPromoCode);
+}
+
+if (promoCodeInput) {
+  promoCodeInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      applyPromoCode();
+    }
   });
 }
 
@@ -210,14 +267,28 @@ const SHOP_ITEMS = [
     name: 'Booster instantané',
     description: 'Reçois immédiatement un booster en stock.',
     price: 180,
-    rewardBoosters: 1
+    rewardBoosters: 1,
+    hourlyLimit: 3,
+    emoji: '🎁'
   },
   {
     id: 'booster-pack',
     name: 'Pack de 3 boosters',
     description: 'Reçois 3 boosters supplémentaires.',
     price: 520,
-    rewardBoosters: 3
+    rewardBoosters: 3,
+    hourlyLimit: 3,
+    emoji: '📦'
+  },
+  {
+    id: 'booster-capacity',
+    name: 'Power-up capacité',
+    description: 'Augmente temporairement la capacité maximale de boosters de 1 pendant 12h.',
+    price: 350,
+    rewardBoosters: 1,
+    effectType: 'temporary-capacity',
+    effectDurationMs: 12 * 60 * 60 * 1000,
+    emoji: '⚡'
   }
 ];
 
@@ -232,44 +303,195 @@ function getPendingAchievementsCount() {
   }, 0);
 }
 
+function updatePendingAchievementsText() {
+  const pendingCount = getPendingAchievementsCount();
+  if (pendingAchievementsText) {
+    pendingAchievementsText.textContent = `${pendingCount} récompense${pendingCount === 1 ? '' : 's'} en attente`;
+  }
+  if (achievementsCard) {
+    achievementsCard.classList.toggle('has-pending-rewards', pendingCount > 0);
+  }
+}
+
+function getShopItemPurchaseCount(item, now = Date.now()) {
+  ensureShopPurchaseState(now);
+  return Number(state.shopPurchaseCounts?.[item.id] || 0);
+}
+
+function ensureShopPromotion(now = Date.now()) {
+  const currentHour = getHourBucket(now);
+  if (state.shopPromotionHourKey !== currentHour) {
+    state.shopPromotionHourKey = currentHour;
+    state.shopPromotionItemId = SHOP_ITEMS[Math.floor(Math.random() * SHOP_ITEMS.length)].id;
+    const nextHourAt = Math.floor(now / 3600000) * 3600000 + 3600000;
+    state.shopPromotionUntil = nextHourAt;
+  }
+  return state.shopPromotionItemId;
+}
+
+function getPromotionPrice(item, now = Date.now()) {
+  ensureShopPromotion(now);
+  if (state.shopPromotionItemId === item.id && (state.shopPromotionUntil || 0) > now) {
+    return Math.round(item.price * 0.9);
+  }
+  return item.price;
+}
+
+function isItemOnPromotion(itemId, now = Date.now()) {
+  ensureShopPromotion(now);
+  return state.shopPromotionItemId === itemId && (state.shopPromotionUntil || 0) > now;
+}
+
+function getShopItemStockText(item, now = Date.now()) {
+  if (!item.hourlyLimit || item.hourlyLimit <= 0) {
+    return '';
+  }
+
+  const currentPurchases = getShopItemPurchaseCount(item, now);
+  const remaining = Math.max(0, item.hourlyLimit - currentPurchases);
+
+  if (remaining <= 0) {
+    return 'Épuisé';
+  }
+
+  return `${remaining} restant${remaining > 1 ? 's' : ''}`;
+}
+
+function getShopItemTimerText(item, now = Date.now()) {
+  if (item.id === 'booster-credit' || item.id === 'booster-pack') {
+    const currentPurchases = getShopItemPurchaseCount(item, now);
+    if (currentPurchases >= (item.hourlyLimit || 3)) {
+      const exhaustionAt = Number(state.shopExhaustionAtByItem?.[item.id] || now);
+      const nextHourAt = Math.floor(exhaustionAt / 3600000) * 3600000 + 3600000;
+      const remainingMs = Math.max(0, nextHourAt - now);
+      return `Réinitialise dans ${formatDuration(remainingMs)}`;
+    }
+    return 'Disponible maintenant';
+  }
+
+  if (item.effectType === 'temporary-capacity') {
+    if (isTemporaryBoosterCapacityActive(now)) {
+      const remainingMs = Math.max(0, state.tempBoosterCapacityUntil - now);
+      return `Actif encore ${formatDuration(remainingMs)}`;
+    }
+    return 'Durée 12h';
+  }
+
+  return '';
+}
+
+function formatDuration(ms) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+  const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+  return `${hours}:${minutes}:${seconds}`;
+}
+
 function buyShopItem(itemId) {
   const item = SHOP_ITEMS.find((entry) => entry.id === itemId);
-  if (!item || (state.coins || 0) < item.price) {
+  const now = Date.now();
+  ensureShopPurchaseState(now);
+  ensureShopPromotion(now);
+
+  const price = getPromotionPrice(item, now);
+  if (!item || (state.coins || 0) < price) {
     return;
   }
 
-  state.coins = (state.coins || 0) - item.price;
-  state.boostersAvailable = Math.min(getEffectiveBoosterLimit(), (state.boostersAvailable || 0) + (item.rewardBoosters || 0));
-  if (state.boostersAvailable < getEffectiveBoosterLimit() && !state.nextBoosterAt) {
-    state.nextBoosterAt = Date.now() + BOOSTER_COOLDOWN_MS;
+  state.coins = (state.coins || 0) - price;
+
+  if ((item.hourlyLimit || Infinity) < Infinity && getShopItemPurchaseCount(item, now) >= item.hourlyLimit) {
+    showToast('Cet article est épuisé pour cette heure.');
+    return;
   }
+
+  if (item.effectType === 'temporary-capacity') {
+    state.tempBoosterCapacityUntil = now + item.effectDurationMs;
+    state.boostersAvailable = Math.min(getEffectiveBoosterLimit(), (state.boostersAvailable || 0) + (item.rewardBoosters || 0));
+    if (state.boostersAvailable < getEffectiveBoosterLimit() && !state.nextBoosterAt) {
+      state.nextBoosterAt = now + BOOSTER_COOLDOWN_MS;
+    }
+  } else {
+    state.shopPurchaseCounts = state.shopPurchaseCounts || {};
+    const nextCount = Number(state.shopPurchaseCounts[item.id] || 0) + 1;
+    state.shopPurchaseCounts[item.id] = nextCount;
+    if (nextCount >= item.hourlyLimit) {
+      state.shopExhaustionAtByItem = state.shopExhaustionAtByItem || {};
+      state.shopExhaustionAtByItem[item.id] = now;
+    }
+    state.boostersAvailable = Math.min(getEffectiveBoosterLimit(), (state.boostersAvailable || 0) + (item.rewardBoosters || 0));
+    if (state.boostersAvailable < getEffectiveBoosterLimit() && !state.nextBoosterAt) {
+      state.nextBoosterAt = now + BOOSTER_COOLDOWN_MS;
+    }
+  }
+
   awardAchievements();
   saveState();
   render();
 }
 
+function getPromotionTimerText(now = Date.now()) {
+  ensureShopPromotion(now);
+  const remaining = Math.max(0, (state.shopPromotionUntil || now) - now);
+  return formatDuration(remaining);
+}
+
 function renderShop() {
   const shopList = document.getElementById('shopList');
   const coinsDisplay = document.getElementById('coinsDisplay');
+  const descriptionEl = shopList?.parentElement?.querySelector('.subtitle');
   if (!shopList || !coinsDisplay) {
     return;
   }
 
+  if (!shopTimerInterval) {
+    shopTimerInterval = window.setInterval(() => {
+      renderShop();
+    }, 1000);
+  }
+
   coinsDisplay.textContent = `${state.coins || 0} 🪙`;
   shopList.innerHTML = '';
+  const now = Date.now();
+  ensureShopPurchaseState(now);
+  ensureShopPromotion(now);
+
+  if (descriptionEl) {
+    const promoTimer = getPromotionTimerText(now);
+    descriptionEl.innerHTML = `Achète des boosters et des power-ups avec les pièces gagnées en vendant des doublons.<br><span style="font-size:0.85em; color:var(--accent-2);">✨ Promo aléatoire -10% pendant ${promoTimer}</span>`;
+  }
 
   SHOP_ITEMS.forEach((item) => {
+    const purchaseCount = getShopItemPurchaseCount(item, now);
+    const isExhausted = Boolean(item.hourlyLimit && purchaseCount >= item.hourlyLimit);
+    const onPromotion = isItemOnPromotion(item.id, now);
     const card = document.createElement('article');
-    card.className = 'shop-card';
+    card.className = `shop-card${isExhausted ? ' is-sold-out' : ''}${onPromotion ? ' is-promoted' : ''}`;
+    const timerText = getShopItemTimerText(item, now);
+    const stockText = getShopItemStockText(item, now);
+    const promotedPrice = getPromotionPrice(item, now);
+    const buttonDisabled = (state.coins || 0) < promotedPrice || isExhausted;
+
     card.innerHTML = `
       <div class="shop-content">
         <div>
-          <span class="name">${item.name}</span>
+          <div class="shop-item-title">
+            <span class="shop-emoji">${item.emoji || '🛍️'}</span>
+            <span class="name">${item.name}</span>
+            ${onPromotion ? '<span class="promo-badge">-10%</span>' : ''}
+          </div>
           <p class="shop-description">${item.description}</p>
+          <div class="shop-statuses">
+            <span class="shop-timer">${timerText}</span>
+            ${stockText ? `<span class="shop-stock">${stockText}</span>` : ''}
+          </div>
         </div>
         <div class="shop-meta">
-          <span class="rarity-badge">${item.price} 🪙</span>
-          <button type="button" class="buy-btn" ${state.coins < item.price ? 'disabled' : ''}>Acheter</button>
+          <span class="rarity-badge">
+            ${onPromotion ? `<span style="text-decoration: line-through;">${item.price}</span> <strong>${promotedPrice} 🪙</strong>` : `${promotedPrice} 🪙`}
+          </span>
+          <button type="button" class="buy-btn" ${buttonDisabled ? 'disabled' : ''}>Acheter</button>
         </div>
       </div>
     `;
@@ -277,6 +499,45 @@ function renderShop() {
     card.querySelector('.buy-btn').addEventListener('click', () => buyShopItem(item.id));
     shopList.appendChild(card);
   });
+}
+
+function applyPromoCode() {
+  const code = (promoCodeInput?.value || '').trim().toUpperCase();
+  const now = Date.now();
+
+  if (!code) {
+    if (promoResultEl) {
+      promoResultEl.textContent = 'Entre un code promo.';
+    }
+    return;
+  }
+
+  const redeemedCodes = state.promoCodesRedeemed || {};
+  if (redeemedCodes[code]) {
+    if (promoResultEl) {
+      promoResultEl.textContent = 'Ce code promo a déjà été utilisé.';
+    }
+    return;
+  }
+
+  if (code === 'MOULAGA') {
+    state.coins = Number(state.coins || 0) + 500;
+    redeemedCodes[code] = true;
+    state.promoCodesRedeemed = redeemedCodes;
+    saveState();
+    render();
+    if (promoResultEl) {
+      promoResultEl.textContent = 'Code promo appliqué : +500 🪙';
+    }
+    if (promoCodeInput) {
+      promoCodeInput.value = '';
+    }
+    return;
+  }
+
+  if (promoResultEl) {
+    promoResultEl.textContent = 'Code promo invalide.';
+  }
 }
 
 function createBooster() {
@@ -329,6 +590,17 @@ function createEmptyState() {
     boostersAvailable: MAX_BOOSTERS_IN_INVENTORY,
     nextBoosterAt: null,
     boosterUsesThisHour: 0,
+    shopPurchaseHourKey: null,
+    shopPurchaseCounts: {
+      'booster-credit': 0,
+      'booster-pack': 0
+    },
+    shopExhaustionAtByItem: {},
+    tempBoosterCapacityUntil: null,
+    shopPromotionHourKey: null,
+    shopPromotionItemId: null,
+    shopPromotionUntil: null,
+    promoCodesRedeemed: {},
     exchangeBoosterCredits: 0,
     followBonusBoosters: 0,
     followedTwitch: false,
@@ -367,7 +639,20 @@ function loadState() {
         )
       ),
       nextBoosterAt: parsed.nextBoosterAt ? Number(parsed.nextBoosterAt) : null,
+      shopPurchaseHourKey: parsed.shopPurchaseHourKey ?? null,
+      shopPurchaseCounts: {
+        'booster-credit': Number(parsed.shopPurchaseCounts?.['booster-credit'] || 0),
+        'booster-pack': Number(parsed.shopPurchaseCounts?.['booster-pack'] || 0)
+      },
+      shopExhaustionAtByItem: parsed.shopExhaustionAtByItem || {},
+      tempBoosterCapacityUntil: parsed.tempBoosterCapacityUntil ? Number(parsed.tempBoosterCapacityUntil) : null,
+      shopPromotionHourKey: parsed.shopPromotionHourKey ?? null,
+      shopPromotionItemId: parsed.shopPromotionItemId ?? null,
+      shopPromotionUntil: parsed.shopPromotionUntil ? Number(parsed.shopPromotionUntil) : null,
+      promoCodesRedeemed: parsed.promoCodesRedeemed || {},
       exchangeBoosterCredits: Number(parsed.exchangeBoosterCredits || 0),
+      followedTwitch: Boolean(parsed.followedTwitch || Number(parsed.followBonusBoosters || 0) >= 1),
+      followedInstagram: Boolean(parsed.followedInstagram || Number(parsed.followBonusBoosters || 0) >= 2),
       followBonusBoosters: Number(parsed.followBonusBoosters || 0),
       coins: Number(parsed.coins || 0),
       boosterUsesThisHour: 0
@@ -776,10 +1061,7 @@ function render() {
     headerTotalCount.textContent = EMOJI_LIBRARY.length;
   }
   boostersOpened.textContent = state.boostersOpened;
-  if (pendingAchievementsText) {
-    const pendingCount = state.pendingAchievements || 0;
-    pendingAchievementsText.textContent = `${pendingCount} récompense${pendingCount === 1 ? '' : 's'} en attente`;
-  }
+  updatePendingAchievementsText();
 
   renderBoosterSummary();
 

@@ -16,7 +16,6 @@
             Tu reçois 1 nouveau booster toutes les 10 minutes, jusqu’à 3 boosters à la fois.
             Chaque booster contient des emojis de différentes raretés, allant de Commun à Légendaire Ultime. Les taux d’obtention sont affichés dans la bibliothèque complète.
           </p>
-          <span id="heroCoinsBadge" class="minimal-coins-badge">0 🪙</span>
           </div>
         </div>
         <button id="openBoosterBtn" class="primary-btn">Ouvrir un booster</button>
@@ -43,7 +42,7 @@
           <h2>Pièces</h2>
           <p id="coinsTotal" class="value">0 🪙</p>
         </article>
-        <article class="card stat-card achievements-card">
+        <article id="achievementsCard" class="card stat-card achievements-card">
           <div class="stat-card-header">
             <h2>Succès</h2>
             <a href="achievements.html" class="secondary-btn small-btn">Voir</a>
@@ -99,11 +98,16 @@
       <section class="card shop-panel">
         <div class="panel-header">
           <h2>Boutique</h2>
-          <span class="pill muted">Pièces disponibles : <strong id="coinsDisplay">0 🪙</strong></span>
+          <span class="pill muted">Pièces disponibles :&nbsp;<strong id="coinsDisplay">0 🪙</strong></span>
         </div>
         <p class="subtitle" style="margin-bottom: 0.8rem;">
           Achète des boosters et des power-ups avec les pièces gagnées en vendant des doublons.
         </p>
+        <div class="promo-box" style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-bottom: 1rem;">
+          <input id="promoCodeInput" type="text" placeholder="Code promo" style="flex:1; min-width:220px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.06); color:white; padding:0.75rem 0.95rem; border-radius:999px;" />
+          <button id="applyPromoBtn" type="button" class="secondary-btn">Appliquer</button>
+        </div>
+        <p id="promoResult" class="subtitle" style="margin-top:-0.3rem; margin-bottom:0.9rem; min-height:1.3rem;"></p>
         <div id="shopList" class="shop-grid"></div>
       </section>
 

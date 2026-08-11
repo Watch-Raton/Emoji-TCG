@@ -42,6 +42,7 @@
           <div class="library-stats">
             <span class="stat-pill">Découverts : <strong id="discoveredCount">0</strong>/<strong id="totalCount">0</strong></span>
             <span class="stat-pill">Résultats : <strong id="resultsCount">0</strong></span>
+            <span class="stat-pill">Pièces : <strong id="coinsCount">0</strong> 🪙</span>
           </div>
         </div>
         <a href="index.html" class="primary-btn" style="text-decoration:none; display:inline-flex; align-items:center;">Retour au jeu</a>
@@ -69,6 +70,7 @@
       const discoveredCountEl = document.getElementById('discoveredCount');
       const totalCountEl = document.getElementById('totalCount');
       const resultsCountEl = document.getElementById('resultsCount');
+      const coinsCountEl = document.getElementById('coinsCount');
       const library = Array.isArray(window.EmojiTCGData?.EMOJI_LIBRARY) ? window.EmojiTCGData.EMOJI_LIBRARY : [];
       const { getRarityByName, getRarityRank: sharedGetRarityRank, translateEmojiName } = window.EmojiTCGData || {};
       const storageKey = 'emoji-tcg-save-v1';
@@ -208,11 +210,19 @@
         if (!Array.isArray(library) || library.length === 0) {
           libraryGrid.innerHTML = '<div class="empty-state">La bibliothèque est indisponible pour le moment.</div>';
           resultsCountEl.textContent = '0';
+          if (coinsCountEl) {
+            coinsCountEl.textContent = '0';
+          }
           return;
         }
 
         const term = filter.toLowerCase();
         const collection = getCollectionState();
+        if (coinsCountEl) {
+          const saved = localStorage.getItem(storageKey);
+          const parsed = saved ? JSON.parse(saved) : {};
+          coinsCountEl.textContent = Number(parsed.coins || 0);
+        }
         const collectionEntries = Object.values(collection || {});
         const discoveredByFamily = new Map();
 
