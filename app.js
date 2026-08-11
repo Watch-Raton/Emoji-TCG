@@ -170,16 +170,7 @@ function awardAchievements() {
       };
 
       if (definition.id === 'follow-twitch') {
-        if (!(state.ownedBackgrounds || []).includes(SPECIAL_BACKGROUND_IMAGE)) {
-          state.totalCosmeticsObtained = (state.totalCosmeticsObtained || 0) + 1;
-        }
-        state.ownedBackgrounds = Array.from(new Set([...(state.ownedBackgrounds || []), SPECIAL_BACKGROUND_IMAGE]));
-        state.currentBackground = SPECIAL_BACKGROUND_IMAGE;
-        state.achievementsClaimed = {
-          ...(state.achievementsClaimed || {}),
-          [definition.id]: true
-        };
-        showToast(`Succès débloqué : ${definition.name} — nouveau fond débloqué !`);
+        showToast(`Succès débloqué : ${definition.name} — récompense à réclamer`);
       } else if (definition.reward === 0) {
         state.achievementsClaimed = {
           ...(state.achievementsClaimed || {}),

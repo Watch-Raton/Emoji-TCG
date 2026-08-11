@@ -32,8 +32,8 @@ const ACHIEVEMENT_DEFINITIONS = [
   {
     id: 'follow-twitch',
     name: '📺 Twitch addict',
-    description: 'Follow la chaîne Twitch pour débloquer un fond d\'écran.',
-    reward: 0,
+    description: 'Follow la chaîne Twitch pour obtenir une récompense.',
+    reward: 250,
     target: 1
   },
   {
