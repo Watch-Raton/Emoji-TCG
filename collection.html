@@ -6,10 +6,10 @@
     <title>Collection - Emoji TCG</title>
     <link rel="stylesheet" href="styles.css" />
     <style>
-      .collection-page { max-width: 1120px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+      .collection-page { max-width: 1120px; margin: 0 auto; padding: 2rem 1.2rem 3rem; }
       .library-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.25rem; margin-bottom: 1.5rem; }
       .collection-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.9rem; }
-      .collection-card { padding: 0.9rem; border-radius: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+      .collection-card { padding: 1rem 1.2rem; border-radius: 20px; background: rgba(16, 28, 50, 0.92); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
       .collection-stats { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.7rem; }
       .collection-toolbar { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0 0 1rem; }
       .collection-toolbar button { border: 0; padding: 0.7rem 1rem; border-radius: 999px; background: rgba(255,255,255,0.1); color: var(--text); cursor: pointer; }
@@ -23,8 +23,8 @@
     </style>
   </head>
   <body>
-    <main class="collection-page">
-      <div class="library-header">
+    <main class="app-shell collection-page">
+      <header class="hero page-hero library-header">
         <div>
           <p class="eyebrow">Emoji TCG</p>
           <h1>Collection</h1>
@@ -38,7 +38,7 @@
           <p id="sellResult" class="subtitle" style="margin-top: 0.65rem; color: var(--accent-2);"></p>
         </div>
         <a href="index.html" class="primary-btn" style="text-decoration:none; display:inline-flex; align-items:center; margin-left: 1rem;">Retour au jeu</a>
-      </div>
+      </header>
       <div class="collection-toolbar">
         <button id="showAllBtn" class="is-active" type="button">Tous</button>
         <button id="showDuplicatesBtn" type="button">En double</button>

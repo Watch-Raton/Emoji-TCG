@@ -6,10 +6,10 @@
     <title>Succès - Emoji TCG</title>
     <link rel="stylesheet" href="styles.css" />
     <style>
-      .achievements-page { max-width: 1080px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+      .achievements-page { max-width: 1080px; margin: 0 auto; padding: 2rem 1.2rem 3rem; }
       .achievements-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.25rem; margin-bottom: 1.5rem; }
       .achievement-grid { display: grid; gap: 1rem; }
-      .achievement-card { padding: 1rem 1.1rem; border-radius: 20px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+      .achievement-card { padding: 1rem 1.2rem; border-radius: 20px; background: rgba(16,28,50,0.92); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
       .achievement-card h3 { margin: 0 0 0.5rem; font-size: 1.05rem; }
       .achievement-card p { margin: 0 0 0.8rem; color: var(--muted); line-height: 1.5; }
       .achievement-meta { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
@@ -30,8 +30,8 @@
     </style>
   </head>
   <body>
-    <main class="achievements-page">
-      <div class="achievements-header">
+    <main class="app-shell achievements-page">
+      <header class="hero page-hero achievements-header">
         <div>
           <p class="eyebrow">Emoji TCG</p>
           <h1>Succès</h1>
@@ -56,7 +56,7 @@
           <span id="coinsCount" class="stat-pill" style="margin-top:0.4rem;">0 🪙</span>
         </div>
         <a href="index.html" class="primary-btn" style="text-decoration:none; display:inline-flex; align-items:center;">Retour au jeu</a>
-      </div>
+      </header>
       <div id="achievementGrid" class="achievement-grid"></div>
     </main>
 

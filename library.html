@@ -6,10 +6,10 @@
     <title>Bibliothèque Emoji - Emoji TCG</title>
     <link rel="stylesheet" href="styles.css" />
     <style>
-      .library-page { max-width: 1280px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+      .library-page { max-width: 1280px; margin: 0 auto; padding: 2rem 1.2rem 3rem; }
       .library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.8rem; }
-      .library-card { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.9rem; border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); transition: transform 160ms ease, border-color 160ms ease, background 160ms ease; }
-      .library-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); }
+      .library-card { display: flex; flex-direction: column; gap: 0.45rem; padding: 1rem 1.2rem; border-radius: 20px; background: rgba(16, 28, 50, 0.92); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 10px 25px rgba(0,0,0,0.2); transition: transform 160ms ease, border-color 160ms ease, background 160ms ease; }
+      .library-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.16); background: rgba(18, 32, 56, 0.95); }
       .library-card.is-discovered { border-color: rgba(74, 222, 128, 0.38); box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.18); }
       .library-card .card-top { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
       .library-card .emoji { font-size: 1.9rem; line-height: 1; }
@@ -33,8 +33,8 @@
     </style>
   </head>
   <body>
-    <main class="library-page">
-      <div class="library-header">
+    <main class="app-shell library-page">
+      <header class="hero page-hero library-header">
         <div>
           <p class="eyebrow">Emoji TCG</p>
           <h1>Bibliothèque complète</h1>
@@ -46,7 +46,7 @@
           </div>
         </div>
         <a href="index.html" class="primary-btn" style="text-decoration:none; display:inline-flex; align-items:center;">Retour au jeu</a>
-      </div>
+      </header>
 
       <div class="library-toolbar">
         <input id="librarySearch" type="text" placeholder="Rechercher un emoji..." />
