@@ -89,11 +89,13 @@ function applyFollowBonus(type) {
       return false;
     }
     state.followBonusBoosters = 1;
+    state.followedTwitch = true;
   } else if (type === 'instagram') {
     if ((state.followBonusBoosters || 0) >= 2) {
       return false;
     }
     state.followBonusBoosters = Math.max((state.followBonusBoosters || 0), 2);
+    state.followedInstagram = true;
   }
 
   state.boostersAvailable = Math.min(getEffectiveBoosterLimit(), Math.max(state.boostersAvailable || 0, 1));
@@ -102,8 +104,30 @@ function applyFollowBonus(type) {
   }
   saveState();
   updateBonusButtons();
+  awardAchievements();
+  saveState();
   render();
   return true;
+}
+
+function awardAchievements() {
+  if (typeof ACHIEVEMENT_DEFINITIONS === 'undefined' || !Array.isArray(ACHIEVEMENT_DEFINITIONS)) {
+    return;
+  }
+
+  ACHIEVEMENT_DEFINITIONS.forEach((definition) => {
+    const unlocked = state.achievementsUnlocked?.[definition.id];
+    const progress = getAchievementProgress(definition, state);
+    const target = getAchievementTarget(definition);
+
+    if (!unlocked && progress >= target) {
+      state.achievementsUnlocked = {
+        ...(state.achievementsUnlocked || {}),
+        [definition.id]: true
+      };
+      showToast(`Succès débloqué : ${definition.name} — récompense à réclamer`);
+    }
+  });
 }
 
 if (twitchFollowBtn) {
@@ -174,10 +198,86 @@ openBoosterBtn.addEventListener('click', async () => {
     state.nextBoosterAt = now + BOOSTER_COOLDOWN_MS;
   }
 
+  awardAchievements();
   saveState();
   await revealBooster(booster);
   render();
 });
+
+const SHOP_ITEMS = [
+  {
+    id: 'booster-credit',
+    name: 'Booster instantané',
+    description: 'Reçois immédiatement un booster en stock.',
+    price: 180,
+    rewardBoosters: 1
+  },
+  {
+    id: 'booster-pack',
+    name: 'Pack de 3 boosters',
+    description: 'Reçois 3 boosters supplémentaires.',
+    price: 520,
+    rewardBoosters: 3
+  }
+];
+
+function getPendingAchievementsCount() {
+  if (typeof ACHIEVEMENT_DEFINITIONS === 'undefined' || !Array.isArray(ACHIEVEMENT_DEFINITIONS)) {
+    return 0;
+  }
+  return ACHIEVEMENT_DEFINITIONS.reduce((count, definition) => {
+    const unlocked = Boolean(state.achievementsUnlocked?.[definition.id]);
+    const claimed = Boolean(state.achievementsClaimed?.[definition.id]);
+    return count + ((unlocked && !claimed) ? 1 : 0);
+  }, 0);
+}
+
+function buyShopItem(itemId) {
+  const item = SHOP_ITEMS.find((entry) => entry.id === itemId);
+  if (!item || (state.coins || 0) < item.price) {
+    return;
+  }
+
+  state.coins = (state.coins || 0) - item.price;
+  state.boostersAvailable = Math.min(getEffectiveBoosterLimit(), (state.boostersAvailable || 0) + (item.rewardBoosters || 0));
+  if (state.boostersAvailable < getEffectiveBoosterLimit() && !state.nextBoosterAt) {
+    state.nextBoosterAt = Date.now() + BOOSTER_COOLDOWN_MS;
+  }
+  awardAchievements();
+  saveState();
+  render();
+}
+
+function renderShop() {
+  const shopList = document.getElementById('shopList');
+  const coinsDisplay = document.getElementById('coinsDisplay');
+  if (!shopList || !coinsDisplay) {
+    return;
+  }
+
+  coinsDisplay.textContent = `${state.coins || 0} 🪙`;
+  shopList.innerHTML = '';
+
+  SHOP_ITEMS.forEach((item) => {
+    const card = document.createElement('article');
+    card.className = 'shop-card';
+    card.innerHTML = `
+      <div class="shop-content">
+        <div>
+          <span class="name">${item.name}</span>
+          <p class="shop-description">${item.description}</p>
+        </div>
+        <div class="shop-meta">
+          <span class="rarity-badge">${item.price} 🪙</span>
+          <button type="button" class="buy-btn" ${state.coins < item.price ? 'disabled' : ''}>Acheter</button>
+        </div>
+      </div>
+    `;
+
+    card.querySelector('.buy-btn').addEventListener('click', () => buyShopItem(item.id));
+    shopList.appendChild(card);
+  });
+}
 
 function createBooster() {
   const matchingPoolByRarity = new Map();
@@ -231,6 +331,13 @@ function createEmptyState() {
     boosterUsesThisHour: 0,
     exchangeBoosterCredits: 0,
     followBonusBoosters: 0,
+    followedTwitch: false,
+    followedInstagram: false,
+    coins: 0,
+    maxCoinsHeld: 0,
+    achievementsUnlocked: {},
+    achievementsClaimed: {},
+    shopItemsPurchased: 0,
     lastResetHour: null,
     lastBoosterSignature: null
   };
@@ -262,6 +369,7 @@ function loadState() {
       nextBoosterAt: parsed.nextBoosterAt ? Number(parsed.nextBoosterAt) : null,
       exchangeBoosterCredits: Number(parsed.exchangeBoosterCredits || 0),
       followBonusBoosters: Number(parsed.followBonusBoosters || 0),
+      coins: Number(parsed.coins || 0),
       boosterUsesThisHour: 0
     };
 
@@ -660,6 +768,10 @@ function render() {
     headerTotalCount.textContent = EMOJI_LIBRARY.length;
   }
   boostersOpened.textContent = state.boostersOpened;
+  if (pendingAchievementsText) {
+    const pendingCount = state.pendingAchievements || 0;
+    pendingAchievementsText.textContent = `${pendingCount} récompense${pendingCount === 1 ? '' : 's'} en attente`;
+  }
 
   renderBoosterSummary();
 
@@ -749,6 +861,7 @@ function render() {
   } else {
     libraryList.innerHTML = '<div class="empty-state">La bibliothèque est vide pour le moment.</div>';
   }
+  renderShop();
 }
 
 function showToast(message) {

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Succès - Emoji TCG</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .achievements-page { max-width: 1080px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+      .achievements-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.25rem; margin-bottom: 1.5rem; }
+      .achievement-grid { display: grid; gap: 1rem; }
+      .achievement-card { padding: 1rem 1.1rem; border-radius: 20px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+      .achievement-card h3 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+      .achievement-card p { margin: 0 0 0.8rem; color: var(--muted); line-height: 1.5; }
+      .achievement-meta { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+      .achievement-reward { color: #22c55e; font-weight: 700; }
+      .achievement-progress { height: 0.8rem; width: 100%; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; margin-top: 0.8rem; }
+      .achievement-progress-fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(135deg, #8b5cf6, #22c55e); width: 0%; transition: width 0.25s ease; }
+      .achievement-status { font-size: 0.9rem; font-weight: 700; }
+      .achievement-claim-btn { margin-top: 0.85rem; padding: 0.75rem 1rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); color: var(--text); cursor: pointer; font-weight: 700; transition: transform 0.15s ease, background 0.15s ease; }
+      .achievement-claim-btn:hover { transform: translateY(-1px); background: rgba(255,255,255,0.12); }
+      .achievement-card.pending { border-color: rgba(234, 179, 8, 0.7); background: rgba(234, 179, 8, 0.08); }
+      .achievement-card.claimed { border-color: rgba(34, 197, 94, 0.7); background: rgba(34, 197, 94, 0.08); }
+      .achievement-card.claimed .achievement-status { color: #22c55e; }
+      .achievement-card.unlocked { border-color: rgba(34, 197, 94, 0.7); background: rgba(34, 197, 94, 0.08); }
+    </style>
+  </head>
+  <body>
+    <main class="achievements-page">
+      <div class="achievements-header">
+        <div>
+          <p class="eyebrow">Emoji TCG</p>
+          <h1>Succès</h1>
+          <p class="subtitle">Découvre des succès amusants et gagne des pièces en accomplissant des défis difficiles.</p>
+          <p id="pendingAchievementCount" class="subtitle" style="margin-top:0.75rem;">0 récompense en attente</p>
+        </div>
+        <a href="index.html" class="primary-btn" style="text-decoration:none; display:inline-flex; align-items:center;">Retour au jeu</a>
+      </div>
+      <div id="achievementGrid" class="achievement-grid"></div>
+    </main>
+
+    <script src="emoji-data.js"></script>
+    <script src="achievements.js"></script>
+    <script>
+      const achievementGrid = document.getElementById('achievementGrid');
+      const STORAGE_KEY = 'emoji-tcg-save-v1';
+
+      function loadState() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          return { achievementsUnlocked: {}, achievementsClaimed: {}, coins: 0, maxCoinsHeld: 0, collection: {}, boostersOpened: 0, followedTwitch: false, followedInstagram: false };
+        }
+        try {
+          const parsed = JSON.parse(raw);
+          return {
+            achievementsUnlocked: typeof parsed.achievementsUnlocked === 'object' ? parsed.achievementsUnlocked : {},
+            achievementsClaimed: typeof parsed.achievementsClaimed === 'object' ? parsed.achievementsClaimed : {},
+            coins: Number(parsed.coins || 0),
+            maxCoinsHeld: Number(parsed.maxCoinsHeld || 0),
+            collection: parsed.collection || {},
+            boostersOpened: Number(parsed.boostersOpened || 0),
+            followedTwitch: Boolean(parsed.followedTwitch),
+            followedInstagram: Boolean(parsed.followedInstagram)
+          };
+        } catch {
+          return { achievementsUnlocked: {}, achievementsClaimed: {}, coins: 0, maxCoinsHeld: 0, collection: {}, boostersOpened: 0, followedTwitch: false, followedInstagram: false };
+        }
+      }
+
+      function saveState(state) {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const current = raw ? JSON.parse(raw) : {};
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          ...current,
+          achievementsUnlocked: state.achievementsUnlocked,
+          achievementsClaimed: state.achievementsClaimed,
+          coins: state.coins,
+          maxCoinsHeld: state.maxCoinsHeld
+        }));
+      }
+
+      function getPendingAchievementCount(state) {
+        if (!Array.isArray(ACHIEVEMENT_DEFINITIONS)) {
+          return 0;
+        }
+        return ACHIEVEMENT_DEFINITIONS.reduce((count, definition) => {
+          const unlocked = state.achievementsUnlocked?.[definition.id];
+          const claimed = state.achievementsClaimed?.[definition.id];
+          return count + ((unlocked && !claimed) ? 1 : 0);
+        }, 0);
+      }
+
+      function claimAchievement(definition, state) {
+        if (!state.achievementsUnlocked?.[definition.id] || state.achievementsClaimed?.[definition.id]) {
+          return;
+        }
+
+        state.achievementsClaimed = {
+          ...(state.achievementsClaimed || {}),
+          [definition.id]: true
+        };
+        state.coins = Number(state.coins || 0) + Number(definition.reward || 0);
+        state.maxCoinsHeld = Math.max(Number(state.maxCoinsHeld || 0), state.coins);
+        saveState(state);
+        renderAchievements();
+      }
+
+      function renderAchievements() {
+        const state = loadState();
+        achievementGrid.innerHTML = '';
+
+        if (!Array.isArray(ACHIEVEMENT_DEFINITIONS) || ACHIEVEMENT_DEFINITIONS.length === 0) {
+          achievementGrid.innerHTML = '<p class="subtitle">Aucun succès disponible pour le moment.</p>';
+          return;
+        }
+
+        const pendingCount = getPendingAchievementCount(state);
+        const pendingCountElement = document.getElementById('pendingAchievementCount');
+        if (pendingCountElement) {
+          pendingCountElement.textContent = `${pendingCount} récompense${pendingCount === 1 ? '' : 's'} en attente`;
+        }
+
+        ACHIEVEMENT_DEFINITIONS.forEach((definition) => {
+          const current = getAchievementProgress(definition, state);
+          const target = getAchievementTarget(definition);
+          const unlocked = Boolean(state.achievementsUnlocked?.[definition.id]);
+          const claimed = Boolean(state.achievementsClaimed?.[definition.id]);
+          const completed = current >= target;
+          const progress = target ? Math.min(100, Math.floor((current / target) * 100)) : 0;
+          let statusText = `${formatAchievementProgress(definition, state)}`;
+          let cardClass = 'achievement-card';
+          let actionHtml = '';
+
+          if (unlocked && !claimed) {
+            statusText = 'À réclamer';
+            cardClass += ' pending';
+            actionHtml = `<button class="achievement-claim-btn" data-achievement-id="${definition.id}">Réclamer</button>`;
+          } else if (claimed) {
+            statusText = 'Réclamé';
+            cardClass += ' claimed';
+          } else if (completed) {
+            statusText = 'Succès débloqué';
+            cardClass += ' unlocked';
+          }
+
+          const card = document.createElement('article');
+          card.className = cardClass;
+          card.innerHTML = `
+            <h3>${definition.name}</h3>
+            <p>${definition.description}</p>
+            <div class="achievement-meta">
+              <span class="achievement-reward">+${definition.reward} 🪙</span>
+              <span class="achievement-status">${statusText}</span>
+            </div>
+            <div class="achievement-progress">
+              <span class="achievement-progress-fill" style="width: ${progress}%"></span>
+            </div>
+            ${actionHtml}
+          `;
+          achievementGrid.appendChild(card);
+        });
+
+        achievementGrid.querySelectorAll('.achievement-claim-btn').forEach((button) => {
+          button.addEventListener('click', () => {
+            const achievementId = button.dataset.achievementId;
+            const definition = ACHIEVEMENT_DEFINITIONS.find((item) => item.id === achievementId);
+            if (definition) {
+              claimAchievement(definition, state);
+            }
+          });
+        });
+      }
+
+      renderAchievements();
+    </script>
+  </body>
+</html>
