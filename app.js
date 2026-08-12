@@ -864,7 +864,12 @@ function getBoosterSignature(booster) {
 function getAvailableBoosters(now) {
   const effectiveLimit = getEffectiveBoosterLimit();
 
-  if ((state.boostersAvailable || 0) < effectiveLimit && !state.nextBoosterAt) {
+  if ((state.boostersAvailable || 0) >= effectiveLimit) {
+    state.nextBoosterAt = null;
+    return Math.max(0, (state.boostersAvailable || 0));
+  }
+
+  if (!state.nextBoosterAt) {
     state.nextBoosterAt = now + BOOSTER_COOLDOWN_MS;
   }
 
@@ -876,7 +881,7 @@ function getAvailableBoosters(now) {
     state.nextBoosterAt += BOOSTER_COOLDOWN_MS;
   }
 
-  if ((state.boostersAvailable || 0) > effectiveLimit) {
+  if ((state.boostersAvailable || 0) >= effectiveLimit) {
     state.nextBoosterAt = null;
   }
 
