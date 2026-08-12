@@ -282,7 +282,7 @@ const SHOP_ITEMS = [
     id: 'booster-pack',
     name: 'Pack de 3 boosters',
     description: 'Reçois 3 boosters supplémentaires.',
-    price: 520,
+    price: 490,
     rewardBoosters: 3,
     hourlyLimit: 3,
     emoji: '📦'
