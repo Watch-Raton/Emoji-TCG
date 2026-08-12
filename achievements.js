@@ -159,7 +159,7 @@ const ACHIEVEMENT_DEFINITIONS = [
     id: 'booster-10000',
     name: '🏆 Maître des boosters',
     description: 'Ouvre 1000 boosters.',
-    reward: 10000,
+    reward: 5000,
     target: 1000
   }
 ];
