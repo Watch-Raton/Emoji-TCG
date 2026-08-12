@@ -116,23 +116,23 @@ const ACHIEVEMENT_DEFINITIONS = [
   {
     id: 'legendary-50',
     name: '✨ Légende vivante',
-    description: 'Obtiens 50 émojis légendaires.',
+    description: 'Obtiens 25 émojis légendaires.',
     reward: 2000,
-    target: 50
+    target: 25
   },
   {
     id: 'coins-earned-100000',
     name: '💰 Fortune accumulée',
-    description: 'Obtiens 100000 pièces depuis le début.',
+    description: 'Obtiens 10000 pièces depuis le début.',
     reward: 3000,
-    target: 100000
+    target: 10000
   },
   {
     id: 'coins-spent-100000',
     name: '🏦 Grande dépense',
-    description: 'Dépense 100000 pièces depuis le début.',
+    description: 'Dépense 10000 pièces depuis le début.',
     reward: 3000,
-    target: 100000
+    target: 10000
   },
   {
     id: 'cosmetics-100',
@@ -140,13 +140,6 @@ const ACHIEVEMENT_DEFINITIONS = [
     description: 'Obtient 100 cosmétiques.',
     reward: 2500,
     target: 100
-  },
-  {
-    id: 'cosmetics-1000',
-    name: '🌟 Maestro des styles',
-    description: 'Obtient 1000 cosmétiques.',
-    reward: 5000,
-    target: 1000
   },
   {
     id: 'booster-500',
@@ -165,9 +158,9 @@ const ACHIEVEMENT_DEFINITIONS = [
   {
     id: 'booster-10000',
     name: '🏆 Maître des boosters',
-    description: 'Ouvre 10000 boosters.',
+    description: 'Ouvre 1000 boosters.',
     reward: 10000,
-    target: 10000
+    target: 1000
   }
 ];
 
@@ -244,7 +237,6 @@ function getAchievementProgress(definition, state) {
     case 'coins-spent-100000':
       return Number(state.totalCoinsSpent || 0);
     case 'cosmetics-100':
-    case 'cosmetics-1000':
       return Number(state.totalCosmeticsObtained || 0);
     default:
       return 0;
