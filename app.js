@@ -5,11 +5,13 @@ const BONUS_BOOSTER_ENABLED = false;
 
 const { EMOJI_LIBRARY, RARITY_CONFIG: SHARED_RARITY_CONFIG, getRarityByName } = window.EmojiTCGData || { EMOJI_LIBRARY: [], RARITY_CONFIG: [] };
 const RARITY_CONFIG = SHARED_RARITY_CONFIG.length ? SHARED_RARITY_CONFIG : [
-  { name: 'Commun', weight: 70, color: '#60a5fa' },
-  { name: 'Peu commun', weight: 20, color: '#34d399' },
-  { name: 'Rare', weight: 7, color: '#a78bfa' },
-  { name: 'Épique', weight: 2.5, color: '#f59e0b' },
-  { name: 'Légendaire', weight: 0.5, color: '#fb7185' }
+  { name: 'Commun', weight: 82, color: '#60a5fa' },
+  { name: 'Peu commun', weight: 13.5, color: '#34d399' },
+  { name: 'Rare', weight: 3.5, color: '#a78bfa' },
+  { name: 'Épique', weight: 0.7, color: '#f59e0b' },
+  { name: 'Légendaire', weight: 0.2, color: '#fb7185' },
+  { name: 'Mythique', weight: 0.08, color: '#8b5cf6' },
+  { name: 'Légendaire Ultime', weight: 0.02, color: '#fbbf24' }
 ];
 
 const EMOJI_POOL = EMOJI_LIBRARY;
@@ -99,11 +101,13 @@ function ensureShopPurchaseState(now = Date.now()) {
   const currentHour = getHourBucket(now);
   if (state.shopPurchaseHourKey !== currentHour) {
     state.shopPurchaseHourKey = currentHour;
+    const previousCounts = state.shopPurchaseCounts || {};
     state.shopPurchaseCounts = {
+      ...previousCounts,
       'booster-credit': 0,
       'booster-pack': 0
     };
-    state.shopExhaustionAtByItem = {};
+    state.shopExhaustionAtByItem = state.shopExhaustionAtByItem || {};
   }
   return state.shopPurchaseCounts || {};
 }
@@ -125,6 +129,45 @@ function getEffectiveBoosterLimit() {
   const bonusBoosters = syncFollowBonusState();
   const tempBoosters = isTemporaryBoosterCapacityActive() ? 1 : 0;
   return MAX_BOOSTERS_IN_INVENTORY + bonusBoosters + tempBoosters;
+}
+
+function getBoosterCooldownReductionMs(now = Date.now()) {
+  return isBoosterCooldownReductionActive(now) ? (2 * 60 * 1000) : 0;
+}
+
+function getBoostedRarityRate(rarityName, now = Date.now()) {
+  const baseRate = Number(getRarityStyle(rarityName)?.rate ?? 0);
+  if (!baseRate || !isRarityBoostActive(now)) {
+    return { baseRate, boostedRate: baseRate, active: false };
+  }
+
+  const rarityBoostModifiers = {
+    Commun: 0.55,
+    'Peu commun': 0.8,
+    Rare: 2.2,
+    Épique: 4,
+    Légendaire: 7,
+    Mythique: 12,
+    'Légendaire Ultime': 18
+  };
+
+  const adjusted = RARITY_CONFIG.map((rarity) => {
+    const adjustedWeight = Number(rarity.weight || rarity.rate || 0) * (rarityBoostModifiers[rarity.name] || 1);
+    return { ...rarity, adjustedWeight };
+  });
+  const totalAdjustedWeight = adjusted.reduce((sum, rarity) => sum + rarity.adjustedWeight, 0);
+  const boostedRate = totalAdjustedWeight > 0
+    ? (Number((RARITY_CONFIG.find((rarity) => rarity.name === rarityName)?.weight || baseRate) || 0) * (rarityBoostModifiers[rarityName] || 1)) / totalAdjustedWeight * 100
+    : baseRate;
+
+  return { baseRate, boostedRate, active: true };
+}
+
+function formatRateValue(value) {
+  if (value >= 1) {
+    return `${Number(value).toFixed(1)}%`;
+  }
+  return `${Number(value).toFixed(2)}%`;
 }
 
 function applyFollowBonus(type) {
@@ -296,8 +339,31 @@ const SHOP_ITEMS = [
     effectType: 'temporary-capacity',
     effectDurationMs: 12 * 60 * 60 * 1000,
     emoji: '⚡'
-  }
-  ,{
+  },
+  {
+    id: 'booster-luck',
+    name: 'Power-up chance',
+    description: 'Tous les boosters pendant 1h bénéficient d’une meilleure chance d’obtenir des raretés supérieures.',
+    price: 1000,
+    effectType: 'rarity-boost',
+    effectDurationMs: 60 * 60 * 1000,
+    hourlyLimit: 1,
+    rechargeDurationMs: 12 * 60 * 60 * 1000,
+    emoji: '✨'
+  },
+  {
+    id: 'booster-speed',
+    name: 'Power-up vitesse',
+    description: 'Réduit le temps d’attente des boosters de 2 minutes pendant 1h.',
+    price: 450,
+    effectType: 'cooldown-reduction',
+    effectDurationMs: 60 * 60 * 1000,
+    cooldownReductionMs: 2 * 60 * 1000,
+    hourlyLimit: 1,
+    rechargeDurationMs: 6 * 60 * 60 * 1000,
+    emoji: '🚀'
+  },
+  {
     id: 'emoji-chest',
     name: 'Coffre cosmétique',
     description: "Débloque un fond d'écran emoji aléatoire pour le site.",
@@ -475,6 +541,45 @@ function getShopItemStockText(item, now = Date.now()) {
   return `${remaining} restant${remaining > 1 ? 's' : ''}`;
 }
 
+function isRarityBoostActive(now = Date.now()) {
+  if (!state.boosterLuckyUntil) {
+    return false;
+  }
+
+  if (state.boosterLuckyUntil <= now) {
+    state.boosterLuckyUntil = null;
+    return false;
+  }
+
+  return true;
+}
+
+function isBoosterCooldownReductionActive(now = Date.now()) {
+  if (!state.boosterCooldownBoostUntil) {
+    return false;
+  }
+
+  if (state.boosterCooldownBoostUntil <= now) {
+    state.boosterCooldownBoostUntil = null;
+    return false;
+  }
+
+  return true;
+}
+
+function isItemInRecharge(item, now = Date.now()) {
+  if (!item || !item.rechargeDurationMs) {
+    return false;
+  }
+
+  const exhaustionAt = Number(state.shopExhaustionAtByItem?.[item.id] || 0);
+  if (!exhaustionAt) {
+    return false;
+  }
+
+  return now < exhaustionAt + item.rechargeDurationMs;
+}
+
 function getShopItemTimerText(item, now = Date.now()) {
   if (item.id === 'booster-credit' || item.id === 'booster-pack') {
     const currentPurchases = getShopItemPurchaseCount(item, now);
@@ -493,6 +598,30 @@ function getShopItemTimerText(item, now = Date.now()) {
       return `Actif encore ${formatDuration(remainingMs)}`;
     }
     return 'Durée 12h';
+  }
+
+  if (item.effectType === 'rarity-boost') {
+    if (isRarityBoostActive(now)) {
+      const remainingMs = Math.max(0, state.boosterLuckyUntil - now);
+      return `Boost actif • ${formatDuration(remainingMs)}`;
+    }
+    if (isItemInRecharge(item, now)) {
+      const remainingMs = Math.max(0, Number(state.shopExhaustionAtByItem?.[item.id] || 0) + item.rechargeDurationMs - now);
+      return `Réinitialise dans ${formatDuration(remainingMs)}`;
+    }
+    return '1h d’effet • 2h de recharge';
+  }
+
+  if (item.effectType === 'cooldown-reduction') {
+    if (isBoosterCooldownReductionActive(now)) {
+      const remainingMs = Math.max(0, state.boosterCooldownBoostUntil - now);
+      return `Recharge -2 min • ${formatDuration(remainingMs)}`;
+    }
+    if (isItemInRecharge(item, now)) {
+      const remainingMs = Math.max(0, Number(state.shopExhaustionAtByItem?.[item.id] || 0) + item.rechargeDurationMs - now);
+      return `Réinitialise dans ${formatDuration(remainingMs)}`;
+    }
+    return '-2 min • 1h • 2h de recharge';
   }
 
   return '';
@@ -532,9 +661,24 @@ function buyShopItem(itemId) {
   state.coins = (state.coins || 0) - price;
   state.totalCoinsSpent = (state.totalCoinsSpent || 0) + price;
 
+  if (item.rechargeDurationMs && isItemInRecharge(item, now)) {
+    showToast('Cet article est en recharge pendant 2h.');
+    return false;
+  }
+
   if ((item.hourlyLimit || Infinity) < Infinity && getShopItemPurchaseCount(item, now) >= item.hourlyLimit) {
     showToast('Cet article est épuisé pour cette heure.');
     return false;
+  }
+
+  state.shopPurchaseCounts = state.shopPurchaseCounts || {};
+  if (item.effectType === 'rarity-boost' || item.effectType === 'cooldown-reduction') {
+    const nextCount = Number(state.shopPurchaseCounts[item.id] || 0) + 1;
+    state.shopPurchaseCounts[item.id] = nextCount;
+    if (item.rechargeDurationMs) {
+      state.shopExhaustionAtByItem = state.shopExhaustionAtByItem || {};
+      state.shopExhaustionAtByItem[item.id] = now;
+    }
   }
 
   if (item.effectType === 'temporary-capacity') {
@@ -543,6 +687,12 @@ function buyShopItem(itemId) {
     if (state.boostersAvailable < getEffectiveBoosterLimit() && !state.nextBoosterAt) {
       state.nextBoosterAt = now + BOOSTER_COOLDOWN_MS;
     }
+  } else if (item.effectType === 'rarity-boost') {
+    state.boosterLuckyUntil = now + item.effectDurationMs;
+  } else if (item.effectType === 'cooldown-reduction') {
+    state.boosterCooldownBoostUntil = now + item.effectDurationMs;
+    const nextBoosterAt = Number(state.nextBoosterAt || now + BOOSTER_COOLDOWN_MS);
+    state.nextBoosterAt = Math.max(now, nextBoosterAt - (item.cooldownReductionMs || 2 * 60 * 1000));
   } else if (item.effectType === 'cosmetic-chest') {
     state.shopPurchaseCounts = state.shopPurchaseCounts || {};
     const nextCount = Number(state.shopPurchaseCounts[item.id] || 0) + 1;
@@ -568,6 +718,10 @@ function buyShopItem(itemId) {
   }
 
   state.shopItemsPurchased = (state.shopItemsPurchased || 0) + 1;
+  if (item.rechargeDurationMs) {
+    state.shopExhaustionAtByItem = state.shopExhaustionAtByItem || {};
+    state.shopExhaustionAtByItem[item.id] = now;
+  }
   awardAchievements();
   saveState();
   render();
@@ -609,6 +763,9 @@ function renderShop() {
     const purchaseCount = getShopItemPurchaseCount(item, now);
     let isExhausted = Boolean(item.hourlyLimit && purchaseCount >= item.hourlyLimit);
     if (item.effectType === 'temporary-capacity' && (state.tempBoosterCapacityUntil || 0) > now) {
+      isExhausted = true;
+    }
+    if (item.rechargeDurationMs && isItemInRecharge(item, now)) {
       isExhausted = true;
     }
     const onPromotion = isItemOnPromotion(item.id, now);
@@ -718,17 +875,45 @@ function createBooster() {
 }
 
 function pickWeightedRarity() {
-  const total = RARITY_CONFIG.reduce((sum, item) => sum + item.weight, 0);
-  let roll = Math.random() * total;
+  const rarityBoostModifiers = {
+    Commun: 0.55,
+    'Peu commun': 0.8,
+    Rare: 2.2,
+    Épique: 4,
+    Légendaire: 7,
+    Mythique: 12,
+    'Légendaire Ultime': 18
+  };
 
-  for (const rarity of RARITY_CONFIG) {
+  const boostedConfig = isRarityBoostActive(Date.now())
+    ? RARITY_CONFIG.map((rarity) => {
+        const name = (rarity.name || '').toString();
+        return {
+          ...rarity,
+          weight: Number(rarity.weight || rarity.rate || 0) * (rarityBoostModifiers[name] || 1)
+        };
+      })
+    : RARITY_CONFIG;
+
+  const total = boostedConfig.reduce((sum, item) => sum + item.weight, 0);
+  if (total <= 0) {
+    return RARITY_CONFIG[0];
+  }
+
+  const normalizedConfig = boostedConfig.map((item) => ({
+    ...item,
+    weight: item.weight / total * 100
+  }));
+
+  let roll = Math.random() * 100;
+  for (const rarity of normalizedConfig) {
     roll -= rarity.weight;
     if (roll <= 0) {
       return rarity;
     }
   }
 
-  return RARITY_CONFIG[0];
+  return normalizedConfig[0] || RARITY_CONFIG[0];
 }
 
 function createEmptyState() {
@@ -744,10 +929,17 @@ function createEmptyState() {
     shopPurchaseHourKey: null,
     shopPurchaseCounts: {
       'booster-credit': 0,
-      'booster-pack': 0
+      'booster-pack': 0,
+      'booster-capacity': 0,
+      'booster-luck': 0,
+      'booster-speed': 0,
+      'emoji-chest': 0
     },
     shopExhaustionAtByItem: {},
     tempBoosterCapacityUntil: null,
+    boosterLuckyCharges: 0,
+    boosterLuckyUntil: null,
+    boosterCooldownBoostUntil: null,
     shopPromotionHourKey: null,
     shopPromotionItemId: null,
     shopPromotionUntil: null,
@@ -799,10 +991,17 @@ function loadState() {
       shopPurchaseHourKey: parsed.shopPurchaseHourKey ?? null,
       shopPurchaseCounts: {
         'booster-credit': Number(parsed.shopPurchaseCounts?.['booster-credit'] || 0),
-        'booster-pack': Number(parsed.shopPurchaseCounts?.['booster-pack'] || 0)
+        'booster-pack': Number(parsed.shopPurchaseCounts?.['booster-pack'] || 0),
+        'booster-capacity': Number(parsed.shopPurchaseCounts?.['booster-capacity'] || 0),
+        'booster-luck': Number(parsed.shopPurchaseCounts?.['booster-luck'] || 0),
+        'booster-speed': Number(parsed.shopPurchaseCounts?.['booster-speed'] || 0),
+        'emoji-chest': Number(parsed.shopPurchaseCounts?.['emoji-chest'] || 0)
       },
       shopExhaustionAtByItem: parsed.shopExhaustionAtByItem || {},
       tempBoosterCapacityUntil: parsed.tempBoosterCapacityUntil ? Number(parsed.tempBoosterCapacityUntil) : null,
+      boosterLuckyCharges: Number(parsed.boosterLuckyCharges || 0),
+      boosterLuckyUntil: parsed.boosterLuckyUntil ? Number(parsed.boosterLuckyUntil) : null,
+      boosterCooldownBoostUntil: parsed.boosterCooldownBoostUntil ? Number(parsed.boosterCooldownBoostUntil) : null,
       shopPromotionHourKey: parsed.shopPromotionHourKey ?? null,
       shopPromotionItemId: parsed.shopPromotionItemId ?? null,
       shopPromotionUntil: parsed.shopPromotionUntil ? Number(parsed.shopPromotionUntil) : null,
@@ -863,6 +1062,14 @@ function getBoosterSignature(booster) {
 
 function getAvailableBoosters(now) {
   const effectiveLimit = getEffectiveBoosterLimit();
+  const effectiveCooldownMs = Math.max(0, BOOSTER_COOLDOWN_MS - getBoosterCooldownReductionMs(now));
+
+  if (isBoosterCooldownReductionActive(now) && state.nextBoosterAt) {
+    const reducedNextBoosterAt = now + effectiveCooldownMs;
+    if (state.nextBoosterAt > reducedNextBoosterAt) {
+      state.nextBoosterAt = reducedNextBoosterAt;
+    }
+  }
 
   if ((state.boostersAvailable || 0) >= effectiveLimit) {
     state.nextBoosterAt = null;
@@ -870,7 +1077,7 @@ function getAvailableBoosters(now) {
   }
 
   if (!state.nextBoosterAt) {
-    state.nextBoosterAt = now + BOOSTER_COOLDOWN_MS;
+    state.nextBoosterAt = now + effectiveCooldownMs;
   }
 
   while (
@@ -878,7 +1085,7 @@ function getAvailableBoosters(now) {
     (state.nextBoosterAt || 0) <= now
   ) {
     state.boostersAvailable = (state.boostersAvailable || 0) + 1;
-    state.nextBoosterAt += BOOSTER_COOLDOWN_MS;
+    state.nextBoosterAt += effectiveCooldownMs;
   }
 
   if ((state.boostersAvailable || 0) >= effectiveLimit) {
@@ -897,12 +1104,11 @@ function getRarityRankValue(rarityName) {
   const rankMap = {
     'Légendaire Ultime': 0,
     Mythique: 1,
-    'Ultra rare': 2,
-    Légendaire: 3,
-    Épique: 4,
-    Rare: 5,
-    'Peu commun': 6,
-    Commun: 7
+    Légendaire: 2,
+    Épique: 3,
+    Rare: 4,
+    'Peu commun': 5,
+    Commun: 6
   };
   return rankMap[normalized] ?? 999;
 }
@@ -1096,6 +1302,7 @@ function ensureBoosterRevealModal() {
 function updateBoosterRevealModal(card, index, total, onNext, onClose) {
   const modal = ensureBoosterRevealModal();
   const rarityStyle = getRarityStyle(card.rarity);
+  const rateInfo = getBoostedRarityRate(card.rarity, Date.now());
   const panel = modal.querySelector('.booster-reveal-panel');
   const rarityBadge = modal.querySelector('.reveal-rarity-badge');
   const newPill = modal.querySelector('.reveal-new-pill');
@@ -1115,7 +1322,11 @@ function updateBoosterRevealModal(card, index, total, onNext, onClose) {
   emojiStage.textContent = card.symbol;
   nameEl.textContent = getDisplayName(card);
   rarityEl.textContent = card.rarity;
-  rateEl.textContent = `${rarityStyle?.rate ?? 0}%`;
+  if (rateInfo.active && rateInfo.baseRate > 0) {
+    rateEl.innerHTML = `<span class="reveal-rate-base">${formatRateValue(rateInfo.baseRate)}</span><span class="reveal-rate-boost">${formatRateValue(rateInfo.boostedRate)}</span>`;
+  } else {
+    rateEl.textContent = `${formatRateValue(rateInfo.baseRate)}`;
+  }
   counter.textContent = `${index + 1}/${total}`;
   rarityBadge.textContent = card.rarity;
   rarityBadge.style.background = `${rarityStyle.color}22`;
@@ -1216,7 +1427,11 @@ function render() {
   openBoosterBtn.disabled = !canOpen;
   openBoosterBtn.textContent = canOpen ? `Ouvrir un booster (${available} dispo)` : 'Plus de boosters';
 
-  const remaining = Math.max(0, (state.nextBoosterAt || now + BOOSTER_COOLDOWN_MS) - now);
+  const effectiveCooldownMs = Math.max(0, BOOSTER_COOLDOWN_MS - getBoosterCooldownReductionMs(now));
+  if (isBoosterCooldownReductionActive(now) && state.nextBoosterAt) {
+    state.nextBoosterAt = Math.min(state.nextBoosterAt, now + effectiveCooldownMs);
+  }
+  const remaining = Math.max(0, (state.nextBoosterAt || now + effectiveCooldownMs) - now);
   const hours = String(Math.floor(remaining / 3600000)).padStart(2, '0');
   const minutes = String(Math.floor((remaining % 3600000) / 60000)).padStart(2, '0');
   const seconds = String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0');

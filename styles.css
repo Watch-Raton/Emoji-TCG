@@ -696,6 +696,24 @@ h1 {
   color: var(--muted);
 }
 
+.reveal-rate {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.reveal-rate-base {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.reveal-rate-boost {
+  color: #34d399;
+  font-weight: 800;
+}
+
 .reveal-actions {
   display: flex;
   justify-content: center;

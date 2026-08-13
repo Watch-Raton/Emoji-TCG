@@ -23,6 +23,11 @@
       .library-toolbar input { flex: 1; min-width: 220px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: var(--text); padding: 0.8rem 0.95rem; border-radius: 999px; }
       .library-toolbar button { border: 0; padding: 0.8rem 1rem; border-radius: 999px; background: rgba(255,255,255,0.1); color: white; cursor: pointer; }
       .library-toolbar button.is-active { background: linear-gradient(135deg, rgba(129,140,248,0.85), rgba(236,72,153,0.75)); }
+      .library-legend { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 0 0 1rem; }
+      .legend-item { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.7rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); font-size: 0.8rem; }
+      .legend-swatch { width: 0.75rem; height: 0.75rem; border-radius: 999px; display: inline-block; }
+      .legend-rate { opacity: 0.72; text-decoration: line-through; }
+      .legend-rate.boosted { opacity: 1; color: #34d399; text-decoration: none; font-weight: 800; }
       .library-stats { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.7rem; }
       .stat-pill { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.75rem; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: var(--text); font-size: 0.92rem; }
       .library-family-section { margin-bottom: 1.2rem; }
@@ -56,6 +61,8 @@
         <button id="sortRateBtn">Trier par taux ↓</button>
       </div>
 
+      <div id="libraryLegend" class="library-legend"></div>
+
       <div id="libraryGrid" class="library-grid"></div>
     </main>
 
@@ -77,6 +84,67 @@
       const storageKey = 'emoji-tcg-save-v1';
       let sortAscending = false;
       let activeFilter = 'all';
+
+      function getBoostModifiers() {
+        return {
+          Commun: 0.55,
+          'Peu commun': 0.8,
+          Rare: 2.2,
+          Épique: 4,
+          Légendaire: 7,
+          Mythique: 12,
+          'Légendaire Ultime': 18
+        };
+      }
+
+      function getRarityDisplayRates() {
+        const config = Array.isArray(window.EmojiTCGData?.RARITY_CONFIG) ? window.EmojiTCGData.RARITY_CONFIG : [];
+        const boostActive = (() => {
+          try {
+            const raw = localStorage.getItem(storageKey);
+            const parsed = raw ? JSON.parse(raw) : {};
+            const until = Number(parsed.boosterLuckyUntil || 0);
+            return Boolean(until > Date.now());
+          } catch {
+            return false;
+          }
+        })();
+
+        const adjusted = config.map((rarity) => {
+          const baseRate = Number(rarity.rate || 0);
+          const multiplier = getBoostModifiers()[rarity.name] || 1;
+          const adjustedWeight = boostActive ? baseRate * multiplier : baseRate;
+          return {
+            ...rarity,
+            baseRate,
+            adjustedWeight
+          };
+        });
+
+        const total = adjusted.reduce((sum, rarity) => sum + rarity.adjustedWeight, 0) || 1;
+
+        return adjusted.map((rarity) => ({
+          ...rarity,
+          boostedRate: total > 0 ? (rarity.adjustedWeight / total) * 100 : rarity.baseRate,
+          displayRate: boostActive ? (rarity.adjustedWeight / total) * 100 : rarity.baseRate
+        }));
+      }
+
+      function renderLegend() {
+        const legend = document.getElementById('libraryLegend');
+        if (!legend) {
+          return;
+        }
+
+        const config = getRarityDisplayRates();
+        legend.innerHTML = config.map((rarity) => {
+          const label = rarity.name;
+          const text = rarity.baseRate === rarity.displayRate
+            ? `${label} ${rarity.baseRate}%`
+            : `${label} <span class="legend-rate">${rarity.baseRate}%</span> <span class="legend-rate boosted">${rarity.displayRate.toFixed(2)}%</span>`;
+          return `<span class="legend-item"><span class="legend-swatch" style="background:${rarity.color};"></span><span>${text}</span></span>`;
+        }).join('');
+      }
 
       function getDisplayName(item) {
         if (!item) {
@@ -208,6 +276,7 @@
       }
 
       function renderLibrary(filter = '') {
+        renderLegend();
         if (!Array.isArray(library) || library.length === 0) {
           libraryGrid.innerHTML = '<div class="empty-state">La bibliothèque est indisponible pour le moment.</div>';
           resultsCountEl.textContent = '0';

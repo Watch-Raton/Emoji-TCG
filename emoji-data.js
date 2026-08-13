@@ -1,13 +1,12 @@
 ﻿(function (global) {
   const RARITY_CONFIG = [
-    { id: 'common', name: 'Commun', rate: 70, weight: 70, color: '#60a5fa' },
-    { id: 'uncommon', name: 'Peu commun', rate: 20, weight: 20, color: '#34d399' },
-    { id: 'rare', name: 'Rare', rate: 7, weight: 7, color: '#a78bfa' },
-    { id: 'epic', name: 'Épique', rate: 2.5, weight: 2.5, color: '#f59e0b' },
-    { id: 'legendary', name: 'Légendaire', rate: 0.5, weight: 0.5, color: '#fb7185' },
-    { id: 'ultra-rare', name: 'Ultra rare', rate: 0.01, weight: 0.01, color: '#f43f5e' },
-    { id: 'mythic', name: 'Mythique', rate: 0.1, weight: 0.1, color: '#8b5cf6' },
-    { id: 'special', name: 'Légendaire Ultime', rate: 0.001, weight: 0.001, color: '#fbbf24' }
+    { id: 'common', name: 'Commun', rate: 82, weight: 82, color: '#60a5fa' },
+    { id: 'uncommon', name: 'Peu commun', rate: 13.5, weight: 13.5, color: '#34d399' },
+    { id: 'rare', name: 'Rare', rate: 3.5, weight: 3.5, color: '#a78bfa' },
+    { id: 'epic', name: 'Épique', rate: 0.7, weight: 0.7, color: '#f59e0b' },
+    { id: 'legendary', name: 'Légendaire', rate: 0.2, weight: 0.2, color: '#fb7185' },
+    { id: 'mythic', name: 'Mythique', rate: 0.08, weight: 0.08, color: '#8b5cf6' },
+    { id: 'special', name: 'Légendaire Ultime', rate: 0.02, weight: 0.02, color: '#fbbf24' }
   ];
 
   function getRarityByName(name) {
@@ -19,12 +18,11 @@
     const ranks = {
       'Légendaire Ultime': 0,
       Mythique: 1,
-      'Ultra rare': 2,
-      Légendaire: 3,
-      Épique: 4,
-      Rare: 5,
-      'Peu commun': 6,
-      Commun: 7
+      Légendaire: 2,
+      Épique: 3,
+      Rare: 4,
+      'Peu commun': 5,
+      Commun: 6
     };
     return ranks[name] ?? 6;
   }
